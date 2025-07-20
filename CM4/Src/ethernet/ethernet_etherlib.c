@@ -9,6 +9,8 @@
 #include "etherlib/prefab/conn_blocks/icmp_connblock.h"
 #include "etherlib/utils.h"
 
+#define MAKE_IP(a,b,c,d) (((uint32_t)(a)<<24) | ((uint32_t)(b)<<16) | ((uint32_t)(c)<<8) | (uint32_t)(d))
+
 
 EthernetAddress msg_cb_addr = {0x01, 0x60, 0x00, 0x00, 0x00, 0x00};
 
@@ -99,7 +101,13 @@ void init_ethernet() {
     ethinf_up(E.ethIntf);
 
     // turn on automatic DHCP management
-    ethinf_set_automatic_dhcp_management(E.ethIntf, true);
+    ethinf_set_automatic_dhcp_management(E.ethIntf, false);
+//  void ethinf_get_config(EthInterface *intf, EthInterfaceNetworkConfig *config) {
+//  EthInterface intf = {ip, router, netmask, dns)
+    E.ethIntf->ip= IPv4(192,168,0,2)_ // config -> E.ethIntf->netmask =  // 
+    E.ethIntf->router = IPv4(192,168,0,10);
+    E.ethIntf->netmask = IPv4(255,255,255,0);
+    E.ethIntf->dns = IPv4(8,8,8,8);
 
     // print interface info
     MSG("\n---- \n");
