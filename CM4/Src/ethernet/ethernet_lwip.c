@@ -56,10 +56,12 @@ void init_ethernet() {
     tcpip_init(NULL, NULL);
 
     // clear all associated addresses
-    ip_addr_set_zero_ip4(&ipaddr);
-    ip_addr_set_zero_ip4(&netmask);
-    ip_addr_set_zero_ip4(&router);
-
+    //ip_addr_set_zero_ip4(&ipaddr);
+    //ip_addr_set_zero_ip4(&netmask);
+    //ip_addr_set_zero_ip4(&router);
+    ip4_addr(&ipaddr, 192, 168, 7, 9);
+    ip4_addr(&netmask, 255, 255, 255, 0);
+    ip4_addr(&router, 192, 168, 7, 0);
     // add network interface
     netif_add(&intf,
               &ipaddr,
