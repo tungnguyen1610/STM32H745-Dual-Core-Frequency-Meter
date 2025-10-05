@@ -34,6 +34,8 @@
   * @brief This is the list of modules to be used in the HAL driver
   */
 #define HAL_MODULE_ENABLED
+#define HAL_TIM_MODULE_ENABLED      // <-- enable TIM
+#define HAL_SPI_MODULE_ENABLED
 #define HAL_ADC_MODULE_DISABLED
 #define HAL_CEC_MODULE_DISABLED
 #define HAL_COMP_MODULE_DISABLED
@@ -89,10 +91,10 @@
 #define HAL_SMARTCARD_MODULE_DISABLED
 #define HAL_SMBUS_MODULE_DISABLED
 #define HAL_SPDIFRX_MODULE_DISABLED
-#define HAL_SPI_MODULE_DISABLED
+//#define HAL_SPI_MODULE_DISABLED
 #define HAL_SRAM_MODULE_DISABLED
 #define HAL_SWPMI_MODULE_DISABLED
-#define HAL_TIM_MODULE_DISABLED
+//#define HAL_TIM_MODULE_DISABLED
 #define HAL_UART_MODULE_ENABLED
 #define HAL_USART_MODULE_DISABLED
 #define HAL_WWDG_MODULE_DISABLED
@@ -247,6 +249,8 @@
 #ifdef HAL_RCC_MODULE_ENABLED
   #include "stm32h7xx_hal_rcc.h"
 #endif /* HAL_RCC_MODULE_ENABLED */
+
+
 
 #ifdef HAL_GPIO_MODULE_ENABLED
   #include "stm32h7xx_hal_gpio.h"

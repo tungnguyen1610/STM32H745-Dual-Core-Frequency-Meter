@@ -27,13 +27,12 @@ set(linker_script_SRC ${linker_script_SRC}
 set(sources_SRCS ${sources_SRCS}
     Common/Boot/system_stm32h7xx_dualcore_boot_cm4_cm7.c    
     Common/Drivers/CMSIS/CMSIS_RTOS_V2/cmsis_os2.c
-
 	Src/main.c
 	Src/syscall.c
 	Src/sysmem.c
     Src/etherlib_options.c
 	Startup/startup_stm32h745zitx_CM4.s
-
+    Src/stm32h7xx_hal_msp.c
     Src/cmds.c
     Src/cmds.h
 )
@@ -60,7 +59,7 @@ target_include_directories(${CM4_TARGET} PUBLIC
 )
 
 # Select Ethernet stack
-set(ETH_STACK "ETHERLIB") # select "LWIP" or "ETHERLIB"
+set(ETH_STACK "LWIP") # select "LWIP" or "ETHERLIB"
 
 # Add project symbols (macros)
 set(comp_defs    
@@ -145,6 +144,7 @@ elseif(ETH_STACK STREQUAL "LWIP")
     #set(LWIP_CONTRIB_DIR ${LWIP_DIR}/contrib)
     set(LWIP_INCLUDE_DIRS
         ${LWIP_DIR}/src/include
+        ${LWIP_DIR}/src
         ${LWIP_DIR}/contrib
         ${LWIP_PORT_DIR}/arch
         ${LWIP_PORT_DIR}
@@ -153,6 +153,10 @@ elseif(ETH_STACK STREQUAL "LWIP")
     message(${LWIP_PORT_DIR})
     set(LWIP_COMPILER_FLAGS ${cpu_PARAMS})
     include(${LWIP_DIR}/src/Filelists.cmake)
+    # Add lwIP HTTPD fs.c manually
+    target_sources(lwipcore PRIVATE
+    ${LWIP_DIR}/src/apps/http/fs.c
+    )
     #include(${LWIP_DIR}/contrib/Filelists.cmake)
     
     target_include_directories(${CM4_TARGET} PUBLIC ${LWIP_DIR}/src/include ${LWIP_PORT_DIR})

@@ -5,6 +5,7 @@ if (ETH_STACK STREQUAL "ETHERLIB")
 elseif(ETH_STACK STREQUAL "LWIP")
     set(ETH_STACK_SRC 
         ethernet_lwip.c
+        http_sever.c
     )
 else()
     message("No Ethernet stack was defined!")

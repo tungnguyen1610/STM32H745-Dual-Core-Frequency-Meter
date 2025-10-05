@@ -132,7 +132,7 @@
                 "enabled": true,
                 "waitOnEvent": "postInit",
                 "detached": true,
-                "delayMs": 3000,    // Wait 5s, could be optimized
+                "delayMs": 3000,    // Wait 3s, could be optimized
                 "lifecycleManagedByParent": true,   
                 "launches": [ 
                     {

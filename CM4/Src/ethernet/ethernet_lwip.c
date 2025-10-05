@@ -1,5 +1,5 @@
 #include "ethernet.h"
-
+#include "http_sever.h"
 #include "EthDrv/eth_drv_lwip.h"
 #include "cmsis_os2.h"
 #include "lwip/dhcp.h"
@@ -54,14 +54,13 @@ void link_chg_cb(struct netif *netif) {
 void init_ethernet() {
     // initialize lwIP
     tcpip_init(NULL, NULL);
-
     // clear all associated addresses
     //ip_addr_set_zero_ip4(&ipaddr);
     //ip_addr_set_zero_ip4(&netmask);
     //ip_addr_set_zero_ip4(&router);
-    ip4_addr(&ipaddr, 192, 168, 7, 9);
-    ip4_addr(&netmask, 255, 255, 255, 0);
-    ip4_addr(&router, 192, 168, 7, 0);
+    IP4_ADDR(&ipaddr, 192, 168, 7, 9);
+    IP4_ADDR(&netmask, 255, 255, 255, 0);
+    IP4_ADDR(&router, 192, 168, 7, 0);
     // add network interface
     netif_add(&intf,
               &ipaddr,
@@ -73,13 +72,14 @@ void init_ethernet() {
 
     // make it default
     netif_set_default(&intf);
-
     // register a link change callback
     netif_set_link_callback(&intf, link_chg_cb);
 
+    // init http sever
+    http_sever_init();
     // initialize and start the DHCP-handling
-    checkDhcpTmr = osTimerNew(check_dhcp_state, osTimerPeriodic, NULL, NULL);
-    osTimerStart(checkDhcpTmr, 1000);
+   // checkDhcpTmr = osTimerNew(check_dhcp_state, osTimerPeriodic, NULL, NULL);
+   // osTimerStart(checkDhcpTmr, 1000);
 }
 
 __attribute__((weak)) err_t hook_unknown_ethertype(struct pbuf *pbuf, struct netif *netif) {

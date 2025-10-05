@@ -144,7 +144,7 @@ extern int8_t hook_unknown_ethertype(struct pbuf *pbuf, struct netif *netif);
 #define LWIP_HTTPD_CGI			1
 //#define LWIP_HTTPD_CGI_SSI		1
 #define LWIP_HTTPD_SSI			1
-#define LWIP_HTTPD_CUSTOM_FILES 1
+#define LWIP_HTTPD_CUSTOM_FILES 0
 #define LWIP_HTTPD_DYNAMIC_HEADERS 1
 #define LWIP_HTTPD_EXAMPLE_GENERATEDFILES 1
 #define LWIP_HTTPD_FILE_EXTENSION 1
@@ -224,7 +224,7 @@ The STM32H7xx allows computing and verifying the IP, UDP, TCP and ICMP checksums
 /**
  * LWIP_NETCONN==1: Enable Netconn API (require to use api_lib.c)
  */
-#define LWIP_NETCONN                    0
+#define LWIP_NETCONN           1
 
 /*
    ------------------------------------
@@ -234,7 +234,7 @@ The STM32H7xx allows computing and verifying the IP, UDP, TCP and ICMP checksums
 /**
  * LWIP_SOCKET==1: Enable Socket API (require to use sockets.c)
  */
-#define LWIP_SOCKET                     0
+#define LWIP_SOCKET                     1
 
 /*
    ------------------------------------
