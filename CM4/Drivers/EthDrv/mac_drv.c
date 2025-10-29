@@ -180,7 +180,11 @@ static void ETHHW_InitState(ETH_TypeDef *eth) {
     state->txCntSent = 0;
     state->txCntAcked = 0;
 }
-
+void ETHHW_GetTime(ETH_TypeDef *eth, uint32_t *ps, uint32_t *pns)                            // Get current PTP time
+{
+    *ps= eth->MACSTSR;
+    *pns=eth->MACSTNR & ETH_MACSTNR_TSSS;
+}
 void ETHHW_Init(ETH_TypeDef *eth, ETHHW_InitOpts *init) {
     ETHHW_InitClocks();
     ETHHW_InitPeripheral(eth, init);
@@ -764,7 +768,8 @@ void ETHHW_AuxTimestampCh(ETH_TypeDef *eth, uint8_t ch, bool en) {
     eth->MACACR = tmpreg;
 }
 
-void ETHHW_ReadLastAuxTimestamp(ETH_TypeDef *eth, uint32_t *ps, uint32_t *pns) {
+void ETHHW_ReadLastAuxTimestamp(ETH_TypeDef *eth, uint32_t *ps, uint32_t *pns, uint32_t *ch) {
+    *ch= (eth->MACTSSR>>16)&0xf;
     *ps = eth->MACATSSR;
     *pns = eth->MACATSNR;
 }

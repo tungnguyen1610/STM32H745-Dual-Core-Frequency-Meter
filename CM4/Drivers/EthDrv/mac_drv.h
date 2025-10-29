@@ -117,6 +117,7 @@ typedef enum {
     ETHHW_PTP_PPS_16384Hz
 } ETHHW_PPS_FreqEnum;
 
+void ETHHW_GetTime(ETH_TypeDef *eth, uint32_t *ps, uint32_t *pns);                             // Get current PTP time
 void ETHHW_EnablePTPTimeStamping(ETH_TypeDef *eth);                                          // Enable PTP timestamping (currently every frame received gets timestamped)
 void ETHHW_DisablePTPTimeStamping(ETH_TypeDef *eth);                                         // Disable PTP timestamping
 void ETHHW_InitPTPTime(ETH_TypeDef *eth, uint32_t sec, uint32_t nsec);                       // Initialize PTP clock time
@@ -129,7 +130,7 @@ uint32_t ETHHW_GetPTPSubsecondIncrement(ETH_TypeDef *eth);                      
 void ETHHW_SetPTPSubsecondIncrement(ETH_TypeDef *eth, uint8_t increment);                    // Set PTP clock subsecond increment. Time quantum is 0.467 ns.
 
 void ETHHW_AuxTimestampCh(ETH_TypeDef *eth, uint8_t ch, bool en);                       // Enable auxiliary timestamping channel
-void ETHHW_ReadLastAuxTimestamp(ETH_TypeDef *eth, uint32_t *ps, uint32_t *pns);         // Read lastly captured auxiliary timestamp
+void ETHHW_ReadLastAuxTimestamp(ETH_TypeDef *eth, uint32_t *ps, uint32_t *pns,uint32_t *ch);         // Read lastly captured auxiliary timestamp
 void ETHHW_ClearAuxTimestampFIFO(ETH_TypeDef *eth);                                     // Clear auxiliary timestamp FIFO
 uint8_t ETHHW_GetAuxTimestampCnt(ETH_TypeDef *eth);                                     // Get number of available auxiliary snapshots
 void ETHHW_StartPTPPPSPulseTrain(ETH_TypeDef *eth, uint32_t high_len, uint32_t period); // Generate PPS signal using the pulse train feature

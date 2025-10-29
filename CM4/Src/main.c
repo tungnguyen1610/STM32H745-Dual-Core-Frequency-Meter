@@ -12,7 +12,7 @@
 #include "FreeRTOSConfig.h"
 
 #include "ICC/icc.h"
-
+#include "EthDrv/mac_drv.h"
 #include "etherlib/dynmem.h"
 #include "etherlib/etherlib.h"
 #include "etherlib/prefab/conn_blocks/icmp_connblock.h"
@@ -29,14 +29,70 @@
 #include "cmds.h"
 
 #include "ethernet/ethernet.h"
+#include "timersync/timersync.h"
+#include "timersync/timerdivider.h"
 
-#include "ethernet/http_sever.h"
 #define FLEXPTP_INITIAL_PROFILE ("gPTP")
-TIM_HandleTypeDef htim3;
-TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim2;
+
 void Error_Handler(){while(1) {}};
-static void MX_TIM3_Init(void);
-static void MX_TIM4_Init(void);
+static void frequency_measurement(TimestampU pTime1, TimestampU pTime2)
+{
+  //assum pTime2 > pTime1
+   int32_t  sec_diff = pTime2.sec - pTime1.sec;
+   int32_t nsec_diff=pTime2.nanosec - pTime1.sec;
+   float total_time = sec_diff + (float)nsec_diff / 1E+09;
+   float frequency = 1.0 / total_time; // in Hz
+   MSG("Frequency: %f Hz\n", frequency);
+}
+/* ------------------Full Timestamp Capture ----------------------
+Timer clock = PTP clock (for eg: 190 MHz )
+PTP_INCREMENT_NSEC = 6
+Subsecond part: k(captured)
+Second part: k(captured)<k(PTP)? Tcap=Tptp : Tcap=Tptp-1 
+*/
+TimestampU preCapture ={0,0};
+TimestampU currentCapture={0,0};
+
+/*void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
+    if (htim->Instance == TIM2) {
+     uint32_t captured_ns= HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+     ptphw_gettime(&currentCapture);
+        if(captured_ns< currentCapture.nanosec){
+            currentCapture.nanosec =captured_ns;
+        }
+        else
+        {
+            currentCapture.sec -=1;
+            currentCapture.nanosec = captured_ns;
+        }
+        frequency_measurement(preCapture,currentCapture);
+        preCapture = currentCapture;
+    }
+}
+    */
+/*
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if(htim->Instance==TIM2)
+  {
+//  MSG("Rollover timer happen\n");
+    uint32_t sec,nsec;
+    ETHHW_ReadLastAuxTimestamp(ETH,&sec,&nsec);
+//   MSG("Timestamp: %u s, %u ns\n",sec,nsec);
+    int32_t timeError = (nsec < 500000000) ? -(int32_t)nsec : (int32_t)(nsec - 500000000);
+    // Compute proportional correction (tune factor as needsed)
+    float correction = 1.0f + ((float)timeError / 1e9f);
+    uint32_t currentARR = __HAL_TIM_GET_AUTORELOAD(htim);
+    uint32_t newARR = (uint32_t)((float)currentARR * correction);
+    // Update timer period safely
+    __HAL_TIM_DISABLE(htim);
+    __HAL_TIM_SET_AUTORELOAD(htim, newARR);
+    __HAL_TIM_ENABLE(htim);    
+//    MSG("New period register: %u\n",TIM2->ARR);
+  }
+}
+*/
 
 void print_welcome_message() {
     MSG(ANSI_COLOR_BGREEN "Hi!" ANSI_COLOR_BYELLOW " This is a flexPTP demo for the STMicroelectronics NUCLEO-H745ZI-Q (STM32H745) board.\n\n"
@@ -87,23 +143,22 @@ void task_startup(void *arg) {
 
     /* Loop forever */
     for (;;){
-
+      // osDelay is must for other tasks (like ptp) to run
+        osDelay(1000);
+        HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_1);
     }
 }
 void pwm_task(void *arg)
 {
     // init timer
-    MX_TIM3_Init();
-    //TIM3->CCR1 = 50; // 50% duty cycle
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-    for (;;){
-    HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_1);
+    //MX_TIM2_Init();
+    //HAL_TIM_Base_Start_IT(&htim2);
+    //HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
+//   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+    for (;;){  
     osDelay(500);
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 50);
-    vTaskDelay(pdMS_TO_TICKS(1000));
-
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 75);
-    vTaskDelay(pdMS_TO_TICKS(1000));
+ //  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, 100000000 );
+ //  vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 // ---------------
@@ -133,7 +188,7 @@ int main(void)
     attr.stack_size = 2048;
     attr.name = "init";
     osThreadNew(task_startup, NULL, &attr);
-    osThreadNew(pwm_task, NULL, &attr);
+    //osThreadNew(pwm_task, NULL, &attr);
     // start the FreeRTOS!
     osKernelStart();
 
@@ -148,127 +203,13 @@ void flexptp_user_event_cb(PtpUserEventCode uev) {
 
         ptp_log_enable(PTP_LOG_DEF, true);
         ptp_log_enable(PTP_LOG_BMCA, true);
+
+        //initalize the TimerSync Module
+        timersync_init();
         break;
     default:
         break;
     }
-}
-
-/**
-  * @brief TIM3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM3_Init(void)
-{
-
-  /* USER CODE BEGIN TIM3_Init 0 */
-
-  /* USER CODE END TIM3_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
-
-  /* USER CODE BEGIN TIM3_Init 1 */
-
-  /* USER CODE END TIM3_Init 1 */
-  htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 190-1;
-  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 100-1;
-  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM3_Init 2 */
-
-  /* USER CODE END TIM3_Init 2 */
-  //HAL_TIM_MspPostInit(&htim3);
-
-}
-
-/**
-  * @brief TIM4 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM4_Init(void)
-{
-
-  /* USER CODE BEGIN TIM4_Init 0 */
-
-  /* USER CODE END TIM4_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_IC_InitTypeDef sConfigIC = {0};
-
-  /* USER CODE BEGIN TIM4_Init 1 */
-
-  /* USER CODE END TIM4_Init 1 */
-  htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 190-1;
-  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 100-1;
-  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_IC_Init(&htim4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
-  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 0;
-  if (HAL_TIM_IC_ConfigChannel(&htim4, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM4_Init 2 */
-
-  /* USER CODE END TIM4_Init 2 */
-
 }
 // ------------------------HAL_TICK_FREQ_1KHZ
 

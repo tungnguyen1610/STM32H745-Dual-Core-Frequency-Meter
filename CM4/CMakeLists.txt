@@ -153,9 +153,11 @@ elseif(ETH_STACK STREQUAL "LWIP")
     message(${LWIP_PORT_DIR})
     set(LWIP_COMPILER_FLAGS ${cpu_PARAMS})
     include(${LWIP_DIR}/src/Filelists.cmake)
+    
     # Add lwIP HTTPD fs.c manually
     target_sources(lwipcore PRIVATE
     ${LWIP_DIR}/src/apps/http/fs.c
+    ${LWIP_DIR}/src/apps/http/httpd.c
     )
     #include(${LWIP_DIR}/contrib/Filelists.cmake)
     
@@ -186,6 +188,7 @@ add_subdirectory(Modules/blocking_io)
 
 add_subdirectory(Src/cliutils)
 add_subdirectory(Src/ethernet)
+add_subdirectory(Src/timersync)
 
 # Add flexPTP
 if (ETH_STACK STREQUAL "ETHERLIB")

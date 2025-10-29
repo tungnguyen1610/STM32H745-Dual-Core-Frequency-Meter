@@ -8,9 +8,10 @@
 #include "lwip/netif.h"
 #include "lwip/tcpip.h"
 #include "standard_output/standard_output.h"
-
 #include <stdbool.h>
 #include <stddef.h>
+
+#define PRINT_IPv4(ip) MSG("%u.%u.%u.%u", (ip & 0xFF), ((ip >> 8) & 0xFF), ((ip >> 16) & 0xFF), ((ip >> 24) & 0xFF))
 
 static ip4_addr_t ipaddr;
 static ip4_addr_t netmask;
@@ -51,6 +52,17 @@ void link_chg_cb(struct netif *netif) {
     }
 }
 
+void interface_print_infor (const struct netif *intf)
+{
+    MSG("IP: " ANSI_COLOR_BYELLOW);
+    PRINT_IPv4(intf->ip_addr.addr);
+    MSG("\nNetmask: ");
+    PRINT_IPv4(intf->netmask.addr);
+
+    MSG("\n\n");
+
+    MSG("\n");
+}
 void init_ethernet() {
     // initialize lwIP
     tcpip_init(NULL, NULL);
@@ -58,9 +70,9 @@ void init_ethernet() {
     //ip_addr_set_zero_ip4(&ipaddr);
     //ip_addr_set_zero_ip4(&netmask);
     //ip_addr_set_zero_ip4(&router);
-    IP4_ADDR(&ipaddr, 192, 168, 7, 9);
+    IP4_ADDR(&ipaddr, 192, 168, 10, 11);
     IP4_ADDR(&netmask, 255, 255, 255, 0);
-    IP4_ADDR(&router, 192, 168, 7, 0);
+    IP4_ADDR(&router, 192, 168, 10, 10);
     // add network interface
     netif_add(&intf,
               &ipaddr,
@@ -74,7 +86,10 @@ void init_ethernet() {
     netif_set_default(&intf);
     // register a link change callback
     netif_set_link_callback(&intf, link_chg_cb);
-
+    // print interface info
+    MSG("\n---- \n");
+    interface_print_infor(&intf);
+    MSG("---- \n\n");
     // init http sever
     http_sever_init();
     // initialize and start the DHCP-handling

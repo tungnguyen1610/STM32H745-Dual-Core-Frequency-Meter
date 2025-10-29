@@ -56,6 +56,7 @@
 #define PTP_SET_CLOCK(s, ns) ETHHW_InitPTPTime(ETH, labs(s), abs(ns))
 #define PTP_SET_ADDEND(addend) ETHHW_SetPTPAddend(ETH, addend)
 #define PTP_HW_GET_TIME(pt) ptphw_gettime(pt)
+#define PTP_READ_AUXILIARY_TIMESTAMP(sec, nsec) ETHHW_ReadLastAuxTimestamp(ETH, sec, nsec)
 
 // Include the clock servo (controller) and define the following:
 // - PTP_SERVO_INIT(): function initializing clock servo

@@ -1,93 +1,54 @@
 #include "http_sever.h"
+#include <stm32h7xx_hal.h>
 #include "lwip/opt.h"
 #include "lwip/api.h"
 #include "lwip/apps/fs.h"
+#include "lwip/apps/httpd.h"
 #include "string.h"
 #include "cmsis_os2.h"
 
-static void http_server(struct netconn *conn)
+// Define the tags and their corresponding index used in ssi_handler
+char const* SSI_TAGS[] = {"x", "y", "z"};
+char const** TAGS = SSI_TAGS;
+#define NUM_SSI_TAGS 3
+// Define status strings
+#define SSI_LED_ON  "ON"
+#define SSI_LED_OFF "OFF"
+
+int get_let_status_x() {return HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5);}
+int get_let_status_y() {return HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_1);}
+int get_let_status_z() {return HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14);}
+
+uint16_t ssi_handler (int iIndex, char *pcInsert, int iInsertLen)
 {
-	struct netbuf *inbuf;
-	err_t recv_err;
-	char* buf;
-	u16_t buflen;
-	struct fs_file file;
-
-	/* Read the data from the port, blocking if nothing yet there */
-	recv_err = netconn_recv(conn, &inbuf);
-
-	if (recv_err == ERR_OK)
-	{
-		if (netconn_err(conn) == ERR_OK)
-		{
-			/* Get the data pointer and length of the data inside a netbuf */
-			netbuf_data(inbuf, (void**)&buf, &buflen);
-
-			/* Check if request to get the index.html */
-			if (strncmp((char const *)buf,"GET /index.html",15)==0)
-			{
-				fs_open(&file, "/index.html");
-				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
-				fs_close(&file);
-			}
-			else
-			{
-				/* Load Error page */
-				fs_open(&file, "/404.html");
-				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
-				fs_close(&file);
-			}
-		}
+    char *status;
+    int state=0;
+    switch (iIndex) {
+		case 0:
+            state=get_let_status_x();
+			break;
+		case 1:
+            state=get_let_status_y();
+			break;
+		case 2:
+            state=get_let_status_z();
+			break;
+		default :
+            return 0;
 	}
-	/* Close the connection (server closes in HTTP) */
-	netconn_close(conn);
-
-	/* Delete the buffer (netconn_recv gives us ownership,
-   so we have to make sure to deallocate the buffer) */
-	netbuf_delete(inbuf);
-}
-
-
-static void http_thread(void *arg)
-{ 
-  struct netconn *conn, *newconn;
-  err_t err, accept_err;
-  
-  /* Create a new TCP connection handle */
-  conn = netconn_new(NETCONN_TCP);
-  
-  if (conn!= NULL)
-  {
-    /* Bind to port 80 (HTTP) with default IP address */
-    err = netconn_bind(conn, IP_ADDR_ANY, 80);
-    
-    if (err == ERR_OK)
-    {
-      /* Put the connection into LISTEN state */
-      netconn_listen(conn);
-  
-      while(1) 
-      {
-        /* accept any incoming connection */
-        accept_err = netconn_accept(conn, &newconn);
-        if(accept_err == ERR_OK)
-        {
-          /* serve connection */
-          http_server(newconn);
-
-          /* delete connection */
-          netconn_delete(newconn);
-        }
-      }
+    if (state){
+        status = SSI_LED_ON;
+    } else {
+        status = SSI_LED_OFF;
     }
-  }
+    snprintf(pcInsert,10,"%s",status);
+    return strlen(pcInsert);
 }
 
 void http_sever_init()
 {
-    osThreadAttr_t attr;
-    attr.priority=osPriorityNormal;
-    attr.stack_size=1024;
-    attr.name="http_server";
-    osThreadNew((osThreadFunc_t)http_thread, NULL, &attr);
+
+//	sys_thread_new("http_thread",(osThreadFunc_t)&http_thread, NULL, DEFAULT_THREAD_STACKSIZE, osPriorityNormal);
+	httpd_init();
+    http_set_ssi_handler(ssi_handler, (char const **)TAGS, 3);
 }

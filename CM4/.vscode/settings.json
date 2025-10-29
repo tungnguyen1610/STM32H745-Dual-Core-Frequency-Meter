@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "opt.h": "c",
+        "api.h": "c"
+    }
+}
