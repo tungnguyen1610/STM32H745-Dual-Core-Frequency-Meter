@@ -34,25 +34,11 @@
 
 #define FLEXPTP_INITIAL_PROFILE ("gPTP")
 TIM_HandleTypeDef htim2;
-
+extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim3;
 void Error_Handler(){while(1) {}};
-static void frequency_measurement(TimestampU pTime1, TimestampU pTime2)
-{
-  //assum pTime2 > pTime1
-   int32_t  sec_diff = pTime2.sec - pTime1.sec;
-   int32_t nsec_diff=pTime2.nanosec - pTime1.sec;
-   float total_time = sec_diff + (float)nsec_diff / 1E+09;
-   float frequency = 1.0 / total_time; // in Hz
-   MSG("Frequency: %f Hz\n", frequency);
-}
-/* ------------------Full Timestamp Capture ----------------------
-Timer clock = PTP clock (for eg: 190 MHz )
-PTP_INCREMENT_NSEC = 6
-Subsecond part: k(captured)
-Second part: k(captured)<k(PTP)? Tcap=Tptp : Tcap=Tptp-1 
-*/
-TimestampU preCapture ={0,0};
-TimestampU currentCapture={0,0};
+
+
 
 /*void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM2) {
@@ -140,11 +126,18 @@ void task_startup(void *arg) {
     init.Alternate = 0;
     init.Speed = GPIO_SPEED_LOW;
     HAL_GPIO_Init(GPIOE, &init);
-
+    MX_TIM1_Init();
+    HAL_TIM_Base_Start(&htim1);
+    //HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+    MX_TIM3_Init();
+    HAL_TIM_Base_Start(&htim3);
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     /* Loop forever */
-    for (;;){
+    for (;;)
+    {
       // osDelay is must for other tasks (like ptp) to run
         osDelay(1000);
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 400 );
         HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_1);
     }
 }
@@ -154,9 +147,12 @@ void pwm_task(void *arg)
     //MX_TIM2_Init();
     //HAL_TIM_Base_Start_IT(&htim2);
     //HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
-//   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+    //HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+    //MX_TIM1_Init();
+    //HAL_TIM_Base_Start(&htim1);
     for (;;){  
-    osDelay(500);
+ // MSG("Counter of timer 1 operating in external clock mode: %u\n", TIM1->CNT);
+    osDelay(800);
  //  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, 100000000 );
  //  vTaskDelay(pdMS_TO_TICKS(1000));
     }
@@ -206,6 +202,7 @@ void flexptp_user_event_cb(PtpUserEventCode uev) {
 
         //initalize the TimerSync Module
         timersync_init();
+        
         break;
     default:
         break;

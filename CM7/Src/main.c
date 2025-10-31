@@ -309,6 +309,6 @@
      HAL_IncTick();
  }
  
- void vApplicationIdleHook(void) {
+void vApplicationIdleHook(void) {
      return;
  }

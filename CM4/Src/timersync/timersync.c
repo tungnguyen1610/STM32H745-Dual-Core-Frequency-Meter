@@ -11,6 +11,16 @@
 #define MAX(a,b) ((a < b) ? (a) : (b))
 TimestampU preCapture ={0,0};
 TimestampU currentCapture={0,0};
+static void frequency_measurement()
+{
+  //assum pTime2 > pTime1
+   int32_t  sec_diff = currentCapture.sec - preCapture.sec;
+   int32_t nsec_diff=currentCapture.nanosec - preCapture.nanosec;
+   float total_time = sec_diff + (float)nsec_diff / 1E+09;
+   float frequency = 1.0 / total_time; // in Hz
+   MSG("Frequency: %f Hz\n", frequency);
+   preCapture= currentCapture;
+}
 /*
 * INPUTS
 * TIM2
@@ -78,7 +88,9 @@ static void timer_sync_basic_timer_setup(TIM_HandleTypeDef* htim)
     HAL_TIM_IC_Start_IT(htim, TIM_CHANNEL_4);
 }
 /*
-static void timersync_basic_timer_setup(TIM_TypeDef * pTim) {
+static void timersync_basic_timer_setup(TIM_TypeDef * pstatic void timersync_basic_timer_setup(TIM_TypeDef * pstatic void timersync_basic_timer_setup(TIM_TypeDef * pRCCTim) {
+static void timersync_basic_timer_setup(TIM_TypeDef * pRCCTim) {
+RCCTim) {
     // timer basics
     LL_TIM_SetPrescaler(pTim, 0);
     LL_TIM_SetCounterMode(pTim, LL_TIM_COUNTERMODE_UP);
@@ -136,6 +148,7 @@ void timersync_init_timers() {
 
 void timersync_init() {
     timersync_init_gpio();
+
 
     HAL_NVIC_SetPriority(TIM2_IRQn, 15, 15);
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
@@ -320,6 +333,8 @@ static void timersync_process_capture(uint8_t ch, uint32_t ns) {
     uint32_t ptp_s, ptp_ns;
     ETHHW_GetTime(ETH, &ptp_s, &ptp_ns);
     uint32_t s = (ptp_ns > ns) ? ptp_s : (ptp_s - 1);
+    currentCapture.nanosec=ns;
+    currentCapture.sec =s;
     MSG("CH%u %u.%09u\n", ch, s, ns);
 }
 
@@ -329,6 +344,7 @@ static void timersync_process_capture(uint8_t ch, uint32_t ns) {
     uint32_t period = LL_TIM_GetAutoReload(TIM);\
     uint32_t cap = LL_TIM_IC_GetCaptureCH##CH(TIM);\
     timersync_process_capture(CHIDX, CAP_TO_NS(cap, period));\
+    frequency_measurement();\
 }
 
 void TIM2_IRQHandler(void) {
@@ -343,4 +359,7 @@ void TIM2_IRQHandler(void) {
     CAP_IT_HANDLER(TIM2, 2, 1);
     CAP_IT_HANDLER(TIM2, 3, 2);
     CAP_IT_HANDLER(TIM2, 4, 3);
+
+    // -- Frequency Measurement --
+
 }
