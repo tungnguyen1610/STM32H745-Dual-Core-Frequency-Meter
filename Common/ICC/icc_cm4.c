@@ -60,3 +60,9 @@ ICCQueue * icc_get_outbound_pipe() {
 ICCQueue * icc_get_inbound_pipe() {
     return &(sharedData.fourBound);
 }
+ICCQueue * icc_get_outbound_variable_pipe() {
+    return &(sharedData.sevenBoundVariable);
+}
+ICCQueue * icc_get_inbound_variable_pipe() {
+    return &(sharedData.fourBoundVariable);
+}

@@ -23,6 +23,7 @@
  SPI_HandleTypeDef hspi5;
  DMA_HandleTypeDef hdma_spi5_tx;
  osMutexId_t lcdMutex;
+ uint32_t display_frequency=2;
  void Error_Handler(void)
    {
      /* USER CODE BEGIN Error_Handler_Debug */
@@ -118,7 +119,21 @@
      HAL_RCCEx_PeriphCLKConfig(&perClk);
      
  }
- 
+ void icc_recv_variable_cb(){
+    ICCQueue *q = icc_get_inbound_variable_pipe();
+    uint16_t avail = iccq_avail(q);
+    //MSG(Always call here ) ? 
+    if (avail>0)
+    {
+        for(uint16_t i=0;i<avail;i++){
+            uint32_t c;
+            iccq_top(q,&c);
+            display_frequency=c;
+            MSG("Display frequency:%d Hz\n",display_frequency);      
+            iccq_pop(q);
+        }
+    }
+ }
  void icc_recv_cb() {
      ICCQueue *q = icc_get_inbound_pipe();
      uint16_t avail = iccq_avail(q);
@@ -139,7 +154,6 @@
          iccq_push(q, data + i);
      }
      icc_notify(); 
- 
  }
  
  void task_startup(void *arg) {

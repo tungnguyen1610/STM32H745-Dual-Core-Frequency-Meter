@@ -4,5 +4,4 @@
 
 void MX_TIM1_Init(void);
 void Generate_PWM(void);
-void MX_TIM3_Init(void);
 #endif /* TIMER_DIVIDER_H_ */

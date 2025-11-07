@@ -8,8 +8,6 @@ void iccq_create(ICCQueue * q, volatile uint8_t * p, uint32_t length, uint32_t e
     q->readIdx = 0;
     q->writeIdx = 0;
     memset(q->elements, 0, length * elemSize);
-
-    return q;
 }
 
 void iccq_clear(ICCQueue * q) {
@@ -37,9 +35,9 @@ bool iccq_push(ICCQueue * q, const void * src) {
 
     return true;
 }
-
+// get wrong byte offset
 void iccq_top(ICCQueue * q, void * dest) {
-    memcpy(dest, q->elements + q->readIdx, q->elemSize);
+    memcpy(dest, q->elements + q->readIdx*q->elemSize, q->elemSize);
 }
 
 void iccq_pop(ICCQueue * q) {

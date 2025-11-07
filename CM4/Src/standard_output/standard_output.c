@@ -1,7 +1,6 @@
 #include "standard_output.h"
 
 #include <stdarg.h>
-#include <stdint.h>
 #include <string.h>
 
 #include <embfmt/embformat.h>
@@ -19,6 +18,15 @@ void icc_write(char * str, uint16_t len) {
     icc_notify();
 }
 
+void icc_write_raw(const uint32_t *data, uint16_t len) {
+    ICCQueue *q = icc_get_outbound_variable_pipe();
+    for (uint16_t i = 0; i < len; i++) {
+        if (!iccq_push(q, data + i)) {
+            break;
+        }
+    }
+    icc_notify();
+}
 #define STDIO_OUTPUT_LINEBUF_LEN (2048)
 static char lineBuf[STDIO_OUTPUT_LINEBUF_LEN + 1];
 
@@ -59,6 +67,10 @@ void MSG(const char *format, ...) {
 
 void MSGchar(int c) {
     icc_write(&c, 1);
+}
+
+void MSGVariable(const uint32_t * data, uint16_t len) {
+    icc_write_raw(data, len);
 }
 
 void MSGraw(const char *str) {

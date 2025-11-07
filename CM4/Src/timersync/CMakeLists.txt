@@ -3,6 +3,6 @@ target_sources (
     PUBLIC
     timersync.c
     timersync.h
-    timerdivider.h
-    timerdivider.c
+    freqmeasure.c
+    freqmeasure.h
 )

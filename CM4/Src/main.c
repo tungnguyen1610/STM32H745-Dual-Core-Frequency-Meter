@@ -31,54 +31,13 @@
 #include "ethernet/ethernet.h"
 #include "timersync/timersync.h"
 #include "timersync/timerdivider.h"
+#include "timersync/freqmeasure.h"
 
 #define FLEXPTP_INITIAL_PROFILE ("gPTP")
 TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim3;
 void Error_Handler(){while(1) {}};
-
-
-
-/*void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
-    if (htim->Instance == TIM2) {
-     uint32_t captured_ns= HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-     ptphw_gettime(&currentCapture);
-        if(captured_ns< currentCapture.nanosec){
-            currentCapture.nanosec =captured_ns;
-        }
-        else
-        {
-            currentCapture.sec -=1;
-            currentCapture.nanosec = captured_ns;
-        }
-        frequency_measurement(preCapture,currentCapture);
-        preCapture = currentCapture;
-    }
-}
-    */
-/*
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-  if(htim->Instance==TIM2)
-  {
-//  MSG("Rollover timer happen\n");
-    uint32_t sec,nsec;
-    ETHHW_ReadLastAuxTimestamp(ETH,&sec,&nsec);
-//   MSG("Timestamp: %u s, %u ns\n",sec,nsec);
-    int32_t timeError = (nsec < 500000000) ? -(int32_t)nsec : (int32_t)(nsec - 500000000);
-    // Compute proportional correction (tune factor as needsed)
-    float correction = 1.0f + ((float)timeError / 1e9f);
-    uint32_t currentARR = __HAL_TIM_GET_AUTORELOAD(htim);
-    uint32_t newARR = (uint32_t)((float)currentARR * correction);
-    // Update timer period safely
-    __HAL_TIM_DISABLE(htim);
-    __HAL_TIM_SET_AUTORELOAD(htim, newARR);
-    __HAL_TIM_ENABLE(htim);    
-//    MSG("New period register: %u\n",TIM2->ARR);
-  }
-}
-*/
 
 void print_welcome_message() {
     MSG(ANSI_COLOR_BGREEN "Hi!" ANSI_COLOR_BYELLOW " This is a flexPTP demo for the STMicroelectronics NUCLEO-H745ZI-Q (STM32H745) board.\n\n"
@@ -126,18 +85,14 @@ void task_startup(void *arg) {
     init.Alternate = 0;
     init.Speed = GPIO_SPEED_LOW;
     HAL_GPIO_Init(GPIOE, &init);
-    MX_TIM1_Init();
-    HAL_TIM_Base_Start(&htim1);
-    //HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-    MX_TIM3_Init();
-    HAL_TIM_Base_Start(&htim3);
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+    //MX_TIM3_Init();
+    //HAL_TIM_Base_Start(&htim3);
+    //HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     /* Loop forever */
     for (;;)
     {
       // osDelay is must for other tasks (like ptp) to run
         osDelay(1000);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 400 );
         HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_1);
     }
 }
@@ -201,6 +156,7 @@ void flexptp_user_event_cb(PtpUserEventCode uev) {
         ptp_log_enable(PTP_LOG_BMCA, true);
 
         //initalize the TimerSync Module
+        frequency_estimate_init();
         timersync_init();
         
         break;

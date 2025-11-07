@@ -6,21 +6,19 @@
 #include "stdlib.h"
 #include "flexptp/timeutils.h"
 #include "standard_output/standard_output.h"
+#include "freqmeasure.h"
 
 #define MIN(a,b) ((a < b) ? (a) : (b))
 #define MAX(a,b) ((a < b) ? (a) : (b))
+extern TIM_HandleTypeDef htim1;
 TimestampU preCapture ={0,0};
 TimestampU currentCapture={0,0};
-static void frequency_measurement()
-{
-  //assum pTime2 > pTime1
-   int32_t  sec_diff = currentCapture.sec - preCapture.sec;
-   int32_t nsec_diff=currentCapture.nanosec - preCapture.nanosec;
-   float total_time = sec_diff + (float)nsec_diff / 1E+09;
-   float frequency = 1.0 / total_time; // in Hz
-   MSG("Frequency: %f Hz\n", frequency);
-   preCapture= currentCapture;
-}
+/*
+Based on experiment, when TIM1 operate in external clock based on external signal
+-> f(tim_freq) = f(ext_signal)/2;
+therefore if we have 1kHz signal -> TIM1 frequency = 500Hz
+-> Original frequency = 2 * divider * (Measured_Freq_TIM2_CHx)
+ */
 /*
 * INPUTS
 * TIM2
@@ -73,7 +71,7 @@ static void timer_sync_basic_timer_setup(TIM_HandleTypeDef* htim)
     HAL_TIM_Base_Init(htim);
     HAL_TIM_ConfigClockSource(htim, &sClockSourceConfig);
     // Channels
-    sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
+    sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
     sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
     sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
     sConfigIC.ICFilter = 0;
@@ -279,7 +277,12 @@ void timersync_start() {
     sCtrlState[0].period = TIMERSYNC_DEFAULT_ADDEND;
 
     timersync_init_timers();
-
+    MX_TIM1_External();
+    //divider_input_signal_start();
+    // Enable external clock mode in timer 1
+    //MX_TIM1_Init();
+    HAL_TIM_Base_Start_IT(&htim1);
+    divider_input_signal_start();
     //LL_TIM_SetSlaveMode(TIM2, LL_TIM_SLAVEMODE_TRIGGER);
 }
 
@@ -336,6 +339,10 @@ static void timersync_process_capture(uint8_t ch, uint32_t ns) {
     currentCapture.nanosec=ns;
     currentCapture.sec =s;
     MSG("CH%u %u.%09u\n", ch, s, ns);
+    // Channel 0 used for timer synchronization (feeding PPS)
+    //if (ch!=0)
+    //{
+    //}
 }
 
 #define CAP_TO_NS(cap,period) (uint32_t)((double)(cap) / (double)(period + 1) * 1E+09)
@@ -344,7 +351,6 @@ static void timersync_process_capture(uint8_t ch, uint32_t ns) {
     uint32_t period = LL_TIM_GetAutoReload(TIM);\
     uint32_t cap = LL_TIM_IC_GetCaptureCH##CH(TIM);\
     timersync_process_capture(CHIDX, CAP_TO_NS(cap, period));\
-    frequency_measurement();\
 }
 
 void TIM2_IRQHandler(void) {

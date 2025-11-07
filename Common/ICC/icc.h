@@ -14,9 +14,11 @@
 // } ICC_CopyBuf;
 
 typedef struct {
-    ICCQueue sevenBound, fourBound; ///< Copy buffers for each direction
+    ICCQueue sevenBound, fourBound, fourBoundVariable, sevenBoundVariable; ///< Copy buffers for each direction
     uint8_t pSevenBound[ICC_QUEUE_LENGTH]; ///< Data area for the queues
-    uint8_t pFourBound[ICC_QUEUE_LENGTH]; 
+    uint8_t pFourBound[ICC_QUEUE_LENGTH];
+    uint32_t pFourBoundVariable;
+    uint32_t pSevenBoundVariable;
 } ICC_SharedData;
 
 #define ICC_WAKEUP_SEMID (0) // semaphore ID for wakeing up the CM4 core from the CM7 core
@@ -66,5 +68,7 @@ ICCQueue * icc_get_outbound_pipe();
  * @return pointer to inbound pipe
 */
 ICCQueue * icc_get_inbound_pipe();
+ICCQueue * icc_get_outbound_variable_pipe();
+ICCQueue * icc_get_inbound_variable_pipe();
 
 #endif /* ICC_ICC */
