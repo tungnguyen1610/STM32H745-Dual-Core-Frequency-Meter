@@ -6,7 +6,7 @@
  #include "main.h"
  #include "gc9a01.h"
  #include <stm32h7xx_hal.h>
- 
+ #include <stdio.h>
  #include <ICC/icc.h>
  
  #include "FreeRTOSConfig.h"
@@ -23,8 +23,84 @@
  SPI_HandleTypeDef hspi5;
  DMA_HandleTypeDef hdma_spi5_tx;
  osMutexId_t lcdMutex;
- uint32_t display_frequency=2;
- void Error_Handler(void)
+
+typedef struct {
+    uint32_t freq;
+} ChannelData;
+
+ChannelData channels[4] = {
+    {0}, {1}, {2}, {3}
+};
+#define COLOR_BLACK     0x0000
+#define COLOR_WHITE     0xFFFF
+
+// Adjusted constants for centered display on a circle
+#define HORIZONTAL_PADDING 30 // Push content inward to avoid clipped corners
+#define START_Y_OFFSET     60 // Start further down from the top clipped area
+#define SEPARATOR_THICKNESS 2
+#define LINE_HEIGHT_SPACED (FONT_HEIGHT + 4) // 8 + 4 = 12 pixels per line
+
+/**
+ * @brief Displays the timestamp measurement pattern, centered and safe for circular clipping.
+ */
+void GC9A01_DisplayUpdate(int ch0_freq, int ch1_freq, int ch2_freq, int ch3_freq)
+{
+    // 1. Clear Screen
+    GC9A01_FillRect(0, 0, GC9A01_WIDTH, GC9A01_HEIGHT, COLOR_BLACK);
+
+    uint16_t current_y = START_Y_OFFSET;
+    uint16_t separator_width = GC9A01_WIDTH - 2 * HORIZONTAL_PADDING;
+    uint16_t text_color = COLOR_WHITE;
+    uint16_t bg_color   = COLOR_BLACK;
+    char buffer[50]; // Buffer for formatted strings
+    
+    // Calculate X position for horizontal centering of the separators
+    uint16_t start_x = HORIZONTAL_PADDING;
+    
+    // --- Determine max text width for centering ---
+    // The longest line is "External Timestamp Measurements" (31 characters)
+    const uint16_t max_text_width = 31 * FONT_WIDTH; 
+    
+    // --- Line 1: Top Separator (Centered) ---
+    GC9A01_FillRect(start_x, current_y, separator_width, SEPARATOR_THICKNESS, text_color);
+    current_y += SEPARATOR_THICKNESS + LINE_HEIGHT_SPACED;
+
+    // --- Line 2: Title (Centered) ---
+    // Note: This title is 31 chars wide, so we place it centered
+    GC9A01_WriteString(start_x, current_y, "Frequency Measurements", text_color, bg_color);
+    current_y += LINE_HEIGHT_SPACED;
+
+    // --- Line 3: Middle Separator (Centered) ---
+    GC9A01_FillRect(start_x, current_y, separator_width, SEPARATOR_THICKNESS, text_color);
+    current_y += SEPARATOR_THICKNESS + LINE_HEIGHT_SPACED; 
+
+    GC9A01_WriteString(start_x, current_y, "Estimation", text_color, bg_color);
+    current_y += LINE_HEIGHT_SPACED;
+
+    // --- Line 4-7: Channel Data (Left-aligned relative to HORIZONTAL_PADDING) ---
+    
+    sprintf(buffer, "Ch0: %d Hz", ch0_freq);
+    GC9A01_WriteString(start_x + FONT_WIDTH, current_y, buffer, text_color, bg_color); // Indent by one char
+    current_y += LINE_HEIGHT_SPACED;
+
+    sprintf(buffer, "Ch1: %d Hz", ch1_freq);
+    GC9A01_WriteString(start_x + FONT_WIDTH, current_y, buffer, text_color, bg_color); // Indent by one char
+    current_y += LINE_HEIGHT_SPACED;
+
+    sprintf(buffer, "Ch2: %d Hz", ch2_freq);
+    GC9A01_WriteString(start_x + FONT_WIDTH, current_y, buffer, text_color, bg_color); // Indent by one char
+    current_y += LINE_HEIGHT_SPACED;
+
+    sprintf(buffer, "Ch3: %d Hz", ch3_freq);
+    GC9A01_WriteString(start_x + FONT_WIDTH, current_y, buffer, text_color, bg_color); // Indent by one char
+    current_y += LINE_HEIGHT_SPACED;
+
+    // --- Line 8: Bottom Separator (Centered) ---
+    current_y += 5; 
+    GC9A01_FillRect(start_x, current_y, separator_width, SEPARATOR_THICKNESS, text_color);
+}
+
+void Error_Handler(void)
    {
      /* USER CODE BEGIN Error_Handler_Debug */
      /* User can add his own implementation to report the HAL error return state */
@@ -128,8 +204,7 @@
         for(uint16_t i=0;i<avail;i++){
             uint32_t c;
             iccq_top(q,&c);
-            display_frequency=c;
-            MSG("Display frequency:%d Hz\n",display_frequency);      
+            channels[0].freq=c;
             iccq_pop(q);
         }
     }
@@ -195,30 +270,12 @@
      GC9A01_FillRect(0, 0, 240, 240, 0x0000); // Clear screen black
      osMutexRelease(lcdMutex);
      for (;;) {
-
-    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14); 
-
-    // Draw simple test pattern on black background
-    /**/
-    osMutexAcquire(lcdMutex, osWaitForever); 
-    GC9A01_FillRect(0, 0, 240, 240, 0x0000); // Clear to black
-    GC9A01_FillRect(50, 50, 40, 40, 0xFFFF); // White square
-    GC9A01_FillRect(100, 100, 40, 40, 0xF800); // Red square
-    GC9A01_FillRect(150, 150, 40, 40, 0x07E0); // Green square
-    osDelay(1000); // Longer delay to see the pattern
-    osMutexRelease(lcdMutex); 
-    osMutexAcquire(lcdMutex, osWaitForever); 
-    GC9A01_FillRect(0, 0, 240, 240, 0x0000); // Clear to black
-    osDelay(1000);
-    osMutexRelease(lcdMutex); 
-    osMutexAcquire(lcdMutex, osWaitForever); 
-    GC9A01_FillRect(0, 0, 240, 240, 0xFFFF); // White square
-    osDelay(1000);
-    osMutexRelease(lcdMutex); 
-    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
-    osDelay(500);
-    osMutexRelease(lcdMutex); 
-     }
+     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+     osMutexAcquire(lcdMutex, osWaitForever);
+     GC9A01_DisplayUpdate(channels[0].freq, channels[1].freq, channels[2].freq, channels[3].freq);
+     osMutexRelease(lcdMutex);
+     osDelay(1000); 
+    }
 }
 
  /**
@@ -305,6 +362,7 @@
      // start the FreeRTOS!
      osKernelStart();
      for (;;) {
+        
      }
  }
  

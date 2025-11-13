@@ -1,7 +1,10 @@
 #include "gc9a01.h"
 #include "main.h"
+#include "stdio.h"
 #include <string.h>
+#include "font8x8.h"
  #include <cmsis_os2.h>
+ 
 extern SPI_HandleTypeDef GC9A01_SPI;
 
 #if USE_DMA
@@ -40,6 +43,18 @@ void GC9A01_WriteData(uint8_t data)
     GC9A01_DC_Data();
     HAL_SPI_Transmit(&GC9A01_SPI, &data, 1, GC9A01_SPI_TIMEOUT);
     GC9A01_Unselect();
+}
+void GC9A01_WriteDataBuffer(uint8_t *data, uint32_t size)
+{
+	GC9A01_Select();
+	GC9A01_DC_Data();
+#if USE_DMA
+	tx_busy = 1;
+	HAL_SPI_Transmit_DMA(&GC9A01_SPI, data, size);
+#else
+	HAL_SPI_Transmit(&GC9A01_SPI, data, size, GC9A01_SPI_TIMEOUT);
+	GC9A01_Unselect();
+#endif
 }
 
 // === WRITE DATA BUFFER (DMA) ===
@@ -86,7 +101,16 @@ void GC9A01_SetAddressWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 
     GC9A01_WriteCommand(0x2C); // Write
 }
-
+// === DRAW PIXEL ===
+void GC9A01_DrawPixel(uint16_t x, uint16_t y, uint16_t color)
+{
+	GC9A01_SetAddressWindow(x, y, x, y);
+	uint8_t data[] = {color >> 8, color & 0xFF};
+	GC9A01_WriteDataBuffer(data, 2);
+#if USE_DMA
+	while (tx_busy);
+#endif
+}
 // === FILL RECTANGLE (DMA safe) ===
 void GC9A01_FillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color)
 {
@@ -368,4 +392,95 @@ void GC9A01_Init(void)
 	osDelay(20);
 	// Clear display to black
 	GC9A01_FillRect(0, 0, 240, 240, 0x0000);
+}
+
+// Static buffer for 8x8 pixels (8 * 8 * 2 bytes/pixel = 128 bytes)
+static uint8_t char_buffer[FONT_WIDTH * FONT_HEIGHT * 2];
+
+/**
+ * @brief Draws a single 8x8 character to the display.
+ */
+// Static buffer for 8x8 pixels (8 * 8 * 2 bytes/pixel = 128 bytes)
+static uint8_t char_buffer[FONT_WIDTH * FONT_HEIGHT * 2];
+
+void GC9A01_DrawChar(uint16_t x, uint16_t y, char c, uint16_t color, uint16_t background_color)
+{
+    if (c < 32 || c > 126) c = ' ';
+
+    const uint8_t *char_map = font8x8_basic[c];
+    int screen_row = 0;
+
+    // Standard Row Iteration: Top (0) to Bottom (7)
+    for (int font_row = 0; font_row < FONT_HEIGHT; font_row++) { 
+        uint8_t line_byte = char_map[font_row];
+        
+        int screen_col = 0;
+        // Standard Bit Iteration: MSB-first (Left to Right)
+        for (int font_col = 0; font_col < FONT_WIDTH; font_col++) {
+            
+            uint16_t pixel_color;
+
+            // MSB-first logic: (0x80 >> font_col)
+            if (line_byte & (0x01 << font_col)) { 
+    		pixel_color = color;
+			}else {
+                pixel_color = background_color;
+            }
+
+            // Draw the pixel at the calculated screen position
+            GC9A01_DrawPixel(x + screen_col, y + screen_row, pixel_color);
+            
+            screen_col++;
+        }
+        
+        screen_row++;
+    }
+}
+
+
+/**
+ * @brief Draws a string of 8x8 characters.
+ */
+void GC9A01_WriteString(uint16_t x, uint16_t y, const char *str, uint16_t color, uint16_t background_color)
+{
+    while (*str) {
+        GC9A01_DrawChar(x, y, *str++, color, background_color);
+        x += FONT_WIDTH; // Move to the next horizontal position
+        
+        // Simple screen wrap protection (optional)
+        if (x > GC9A01_WIDTH - FONT_WIDTH) break; 
+    }
+}
+#define COLOR_BLACK   0x0000
+#define COLOR_WHITE   0xFFFF
+
+#define MARGIN_X    10
+#define START_Y     10
+#define SEPARATOR_THICKNESS 2
+#define FONT_SPACING (FONT_HEIGHT + 4) // Line height plus 4 pixels space
+
+void GC9A01_DisplayStats(int ch0_freq, int ch1_freq, int ch2_freq, int ch3_freq)
+{
+    // Constants needed for centering
+    const char *text = "HELLO WORLD";
+    // Text length: 11 characters
+    const uint16_t text_length = 11; 
+    
+    // Calculate required space in pixels
+    // Assumes FONT_WIDTH = 8 (from your font8x8)
+    uint16_t text_pixel_width = text_length * FONT_WIDTH; 
+    
+    // Calculate start X and Y positions
+    // X = (Total Width / 2) - (Text Width / 2)
+    uint16_t center_x = (GC9A01_WIDTH / 2) - (text_pixel_width / 2);
+    // Y = (Total Height / 2) - (Font Height / 2)
+    // Assumes FONT_HEIGHT = 8 (from your font8x8)
+    uint16_t center_y = (GC9A01_HEIGHT / 2) - (FONT_HEIGHT / 2); 
+
+    // --- 1. Clear Screen ---
+    GC9A01_FillRect(0, 0, GC9A01_WIDTH, GC9A01_HEIGHT, COLOR_BLACK); 
+
+    // --- 2. Display Centered Text ---
+    // Use COLOR_WHITE for text and COLOR_BLACK for background
+    GC9A01_WriteString(center_x, center_y, text, COLOR_WHITE, COLOR_BLACK);
 }

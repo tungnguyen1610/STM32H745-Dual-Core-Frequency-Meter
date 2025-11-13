@@ -10,9 +10,38 @@
 
 #define MIN(a,b) ((a < b) ? (a) : (b))
 #define MAX(a,b) ((a < b) ? (a) : (b))
+
 extern TIM_HandleTypeDef htim1;
-TimestampU preCapture ={0,0};
-TimestampU currentCapture={0,0};
+TimestampI timestampCurrentCapture[4];
+TimestampI timestampPrevCapture[4];
+static bool compute_dt(int idx, int64_t *out_dt_sec, int64_t *out_dt_ns_total) 
+{
+    int64_t diff_sec  = timestampCurrentCapture[idx].sec - timestampPrevCapture[idx].sec;
+    int64_t diff_nsec = (int64_t)timestampCurrentCapture[idx].nanosec - (int64_t)timestampPrevCapture[idx].nanosec;
+
+    if (diff_nsec < 0) {
+        diff_sec -= 1;
+        diff_nsec += 1000000000LL;
+    }
+
+    // sanity checks
+    if (diff_sec < 0) return false;   // timestamps went backwards / capture error
+    if (diff_sec == 0 && diff_nsec == 0) return false; // zero interval -> avoid divide-by-zero
+
+    *out_dt_sec = diff_sec;
+    *out_dt_ns_total = diff_sec * 1000000000LL + diff_nsec;
+    return true;
+}
+double compute_freq_double(int idx) 
+{   
+    int64_t dt_sec;
+    int64_t dt_ns;
+    if (!compute_dt(idx, &dt_sec, &dt_ns)) return -1.0; // error sentinel
+    double dt_total = (double)dt_ns * 1e-9; // exactly the interval in seconds
+    double freq = (double)(1.0) / dt_total; // Hz
+    return freq;
+}
+
 /*
 Based on experiment, when TIM1 operate in external clock based on external signal
 -> f(tim_freq) = f(ext_signal)/2;
@@ -85,38 +114,6 @@ static void timer_sync_basic_timer_setup(TIM_HandleTypeDef* htim)
     HAL_TIM_IC_Start_IT(htim, TIM_CHANNEL_3);
     HAL_TIM_IC_Start_IT(htim, TIM_CHANNEL_4);
 }
-/*
-static void timersync_basic_timer_setup(TIM_TypeDef * pstatic void timersync_basic_timer_setup(TIM_TypeDef * pstatic void timersync_basic_timer_setup(TIM_TypeDef * pRCCTim) {
-static void timersync_basic_timer_setup(TIM_TypeDef * pRCCTim) {
-RCCTim) {
-    // timer basics
-    LL_TIM_SetPrescaler(pTim, 0);
-    LL_TIM_SetCounterMode(pTim, LL_TIM_COUNTERMODE_UP);
-    LL_TIM_SetAutoReload(pTim, TIMERSYNC_DEFAULT_ADDEND);
-    LL_TIM_SetClockDivision(pTim, LL_TIM_CLOCKDIVISION_DIV1);
-    LL_TIM_SetRepetitionCounter(pTim, 0);
-
-    LL_TIM_SetClockSource(pTim, LL_TIM_CLOCKSOURCE_INTERNAL);
-
-    // channels
-    uint32_t chConf = LL_TIM_ACTIVEINPUT_DIRECTTI | LL_TIM_ICPSC_DIV1 |
-            LL_TIM_IC_FILTER_FDIV1 | LL_TIM_IC_POLARITY_FALLING;
-    LL_TIM_IC_Config(pTim, LL_TIM_CHANNEL_CH1, chConf);
-    LL_TIM_IC_Config(pTim, LL_TIM_CHANNEL_CH2, chConf);
-    LL_TIM_IC_Config(pTim, LL_TIM_CHANNEL_CH3, chConf);
-    LL_TIM_IC_Config(pTim, LL_TIM_CHANNEL_CH4, chConf);
-
-    // enable channels
-    LL_TIM_CC_EnableChannel(pTim, LL_TIM_CHANNEL_CH1 | LL_TIM_CHANNEL_CH2 |
-            LL_TIM_CHANNEL_CH3 | LL_TIM_CHANNEL_CH4);
-
-    // enable interrupts
-    LL_TIM_EnableIT_CC1(pTim);
-    LL_TIM_EnableIT_CC2(pTim);
-    LL_TIM_EnableIT_CC3(pTim);
-    LL_TIM_EnableIT_CC4(pTim);
-}
-*/
 void timersync_init_timers() {
     __HAL_RCC_TIM2_CLK_ENABLE();
 
@@ -267,6 +264,10 @@ void timersync_run_ctrl(ControllerState * ctrlState, const TimestampI *newTs) {
 void timersync_stop() {
     LL_TIM_SetSlaveMode(TIM2, LL_TIM_SLAVEMODE_DISABLED);
     LL_TIM_DisableCounter(TIM2);
+    LL_TIM_DisableIT_CC1(TIM2);
+    LL_TIM_DisableIT_CC2(TIM2);
+    LL_TIM_DisableIT_CC3(TIM2);
+    LL_TIM_DisableIT_CC4(TIM2);
 }
 
 static ControllerState sCtrlState[2];
@@ -278,9 +279,6 @@ void timersync_start() {
 
     timersync_init_timers();
     MX_TIM1_External();
-    //divider_input_signal_start();
-    // Enable external clock mode in timer 1
-    //MX_TIM1_Init();
     HAL_TIM_Base_Start_IT(&htim1);
     divider_input_signal_start();
     //LL_TIM_SetSlaveMode(TIM2, LL_TIM_SLAVEMODE_TRIGGER);
@@ -332,17 +330,18 @@ PTP_INCREMENT_NSEC = 6
 Subsecond part: k(captured)
 Second part: k(captured)<k(PTP)? Tcap=Tptp : Tcap=Tptp-1 
 */
-static void timersync_process_capture(uint8_t ch, uint32_t ns) {
+static void timersync_process_capture(uint8_t ch, uint32_t ns) 
+{
     uint32_t ptp_s, ptp_ns;
+    double freq;
     ETHHW_GetTime(ETH, &ptp_s, &ptp_ns);
     uint32_t s = (ptp_ns > ns) ? ptp_s : (ptp_s - 1);
-    currentCapture.nanosec=ns;
-    currentCapture.sec =s;
+    timestampCurrentCapture[ch].sec=s;
+    timestampCurrentCapture[ch].nanosec=ns;
     MSG("CH%u %u.%09u\n", ch, s, ns);
-    // Channel 0 used for timer synchronization (feeding PPS)
-    //if (ch!=0)
-    //{
-    //}
+    freq=compute_freq_double(ch);
+    MSG("Frequency: %.2f\n",freq);
+    timestampPrevCapture[ch]=timestampCurrentCapture[ch];
 }
 
 #define CAP_TO_NS(cap,period) (uint32_t)((double)(cap) / (double)(period + 1) * 1E+09)

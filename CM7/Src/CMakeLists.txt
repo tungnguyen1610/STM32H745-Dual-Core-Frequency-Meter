@@ -3,6 +3,7 @@ target_sources(${CM7_TARGET} PUBLIC
     syscall.c
     sysmem.c
     gc9a01.c
+    font8x8.c
     stm32h7xx_hal_msp.c
     stm32h7xx_it.c
 )

@@ -35,7 +35,7 @@ bool iccq_push(ICCQueue * q, const void * src) {
 
     return true;
 }
-// get wrong byte offset
+//  original version: memcpy (dest, q->elements + (q->readIdx), q->elemSize): wrong if elemenSize > 1
 void iccq_top(ICCQueue * q, void * dest) {
     memcpy(dest, q->elements + q->readIdx*q->elemSize, q->elemSize);
 }

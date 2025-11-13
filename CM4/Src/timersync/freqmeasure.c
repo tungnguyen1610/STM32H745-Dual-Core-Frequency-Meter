@@ -97,7 +97,7 @@ void MX_TIM1_Init(void)
 }
 void MX_TIM1_External()
 {
-  HAL_TIM_PWM_DeInit(&htim1); // Stop and deinit previous configuration
+  //HAL_TIM_PWM_DeInit(&htim1); // Stop and deinit previous configuration
   HAL_TIM_Base_DeInit(&htim1);
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   // Peripherial clock enable
@@ -176,6 +176,8 @@ void MX_TIM1_External()
 }
 void divider_input_signal_start()
 {
+    TIM1->ARR= (uint32_t)frequency-1;
+    TIM1->CCR1= (uint32_t)((TIM1->ARR+1)/2);
     HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
 }
 void MX_TIM3_Init()
@@ -207,7 +209,8 @@ void MX_TIM3_Init()
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = PRESCALAR-1;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 100-1;
+  htim3.Init.Period = 100-1;  
+
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -243,15 +246,22 @@ void MX_TIM1_Capture(void)
     if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
     {}
 }
+
 static void capture_start(void)
 {
-    divider_input_signal_start();
+    MX_TIM1_Init();
+    MX_TIM1_Capture();
+    HAL_TIM_Base_Start_IT(&htim1);
     HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_2); 
 }
+
 static void capture_stop(void)
 {
-    HAL_TIM_IC_Stop_IT(&htim1, TIM_CHANNEL_2); 
+    HAL_TIM_IC_Stop_IT(&htim1, TIM_CHANNEL_2);
+    HAL_TIM_Base_Stop_IT(&htim1);
+    HAL_TIM_Base_DeInit(&htim1);
 }
+
 static int CB_start_stop(const CliToken_Type *ppArgs, uint8_t argc)
 {
     if (!strcmp(ppArgs[0], "start"))
@@ -266,24 +276,26 @@ static int CB_start_stop(const CliToken_Type *ppArgs, uint8_t argc)
 
     return 0;
 }
+
 void frequency_estimate_init(void)
 {
     MX_TIM3_Init();
-    MX_TIM1_Init();
-    MX_TIM1_Capture();
-    HAL_TIM_Base_Start_IT(&htim1);
+    //MX_TIM1_Init();
+    //MX_TIM1_Capture();
+    //HAL_TIM_Base_Start_IT(&htim1);
     HAL_NVIC_SetPriority(TIM3_IRQn, 15, 15);
     HAL_NVIC_EnableIRQ(TIM3_IRQn);
-    // test_input_signal
     HAL_TIM_PWM_Start_IT(&htim3, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
+    // test_input_signal
     cli_register_command("frequency estimation {start|stop} \t\t\tTIM3 start/stop", 2, 1, CB_start_stop);
 }
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM1)
         overflow_count++;
 }
+
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM1 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
@@ -301,22 +313,17 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
             {
                 difference = captured_value - last_captured_value;
             }
-            // edge case: delau between overflow_count and capture callback (there for error between -1/-2)
+            // edge case: delay between overflow_count and capture callback (there for error between -1/-2)
             else
             {
                 difference = (htim->Init.Period - last_captured_value) + captured_value + (this_overflow_count-2)* (htim->Init.Period);  
             }          
             frequency = TIMCLOCK / ((float)(PRESCALAR) * (float)difference);
-            display_frequency = 2;
-            count+=1;
-            if (count<5)
-            {
+            display_frequency = (uint32_t)(frequency);
                 MSGVariable(&display_frequency, 1);
-                MSG("Estimated Frequency: %.2f Hz\r\n", frequency);}
-            __HAL_TIM_SetCounter(htim, 0);
-            is_first_capture=0;
-            overflow_count=0;
-
+                __HAL_TIM_SetCounter(htim, 0);
+                is_first_capture=0;
+                overflow_count=0;
         }
     }
 }
@@ -326,6 +333,7 @@ void TIM3_IRQHandler(void) {
 void TIM1_CC_IRQHandler(void)
 {
     HAL_TIM_IRQHandler(&htim1);
+    
 }
 void TIM1_UP_IRQHandler(void)
 {

@@ -15,9 +15,9 @@ char const** TAGS = SSI_TAGS;
 #define SSI_LED_ON  "ON"
 #define SSI_LED_OFF "OFF"
 
-int get_let_status_x() {return HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5);}
-int get_let_status_y() {return HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_1);}
-int get_let_status_z() {return HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14);}
+int get_freq_ch0() {return HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5);}
+int get_freq_ch1() {return HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_1);}
+int get_freq_ch2() {return HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14);}
 
 uint16_t ssi_handler (int iIndex, char *pcInsert, int iInsertLen)
 {
@@ -25,13 +25,13 @@ uint16_t ssi_handler (int iIndex, char *pcInsert, int iInsertLen)
     int state=0;
     switch (iIndex) {
 		case 0:
-            state=get_let_status_x();
+            state=get_freq_ch0();
 			break;
 		case 1:
-            state=get_let_status_y();
+            state=get_freq_ch1();
 			break;
 		case 2:
-            state=get_let_status_z();
+            state=get_freq_ch2();
 			break;
 		default :
             return 0;
