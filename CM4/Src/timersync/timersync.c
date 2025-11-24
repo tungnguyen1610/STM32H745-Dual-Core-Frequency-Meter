@@ -8,10 +8,12 @@
 #include "standard_output/standard_output.h"
 #include "freqmeasure.h"
 
+#define clock_tune (1000.0/200.0)
 #define MIN(a,b) ((a < b) ? (a) : (b))
-#define MAX(a,b) ((a < b) ? (a) : (b))
-
+#define MAX(a,b) ((a > b) ? (a) : (b))
+uint32_t freqChannels[4]={1000,0,0,0};
 extern TIM_HandleTypeDef htim1;
+/*
 TimestampI timestampCurrentCapture[4];
 TimestampI timestampPrevCapture[4];
 static bool compute_dt(int idx, int64_t *out_dt_sec, int64_t *out_dt_ns_total) 
@@ -38,12 +40,15 @@ double compute_freq_double(int idx)
     int64_t dt_ns;
     if (!compute_dt(idx, &dt_sec, &dt_ns)) return -1.0; // error sentinel
     double dt_total = (double)dt_ns * 1e-9; // exactly the interval in seconds
+    freqChannels[idx]=TIM1->ARR;
+    dt_total=dt_total/freqChannels[idx]; // average period if divider used
     double freq = (double)(1.0) / dt_total; // Hz
     return freq;
 }
 
 /*
-Based on experiment, when TIM1 operate in external clock based on external signal
+Based on experiment, when TIM1 operate in external clo
+ck based on external signal
 -> f(tim_freq) = f(ext_signal)/2;
 therefore if we have 1kHz signal -> TIM1 frequency = 500Hz
 -> Original frequency = 2 * divider * (Measured_Freq_TIM2_CHx)
@@ -86,34 +91,35 @@ static CMD_FUNCTION(CB_start_stop);
 static CMD_FUNCTION(CB_compare);
 
 
-static void timer_sync_basic_timer_setup(TIM_HandleTypeDef* htim)
-{
-    TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-    TIM_IC_InitTypeDef sConfigIC = {0};
-    htim->Instance = TIM2;
-    htim->Init.Prescaler=0;
-    htim->Init.CounterMode=TIM_COUNTERMODE_UP;
-    htim->Init.Period=TIMERSYNC_DEFAULT_ADDEND;
-    htim->Init.ClockDivision=TIM_CLOCKDIVISION_DIV1;
-    htim->Init.RepetitionCounter=0;
-    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-    HAL_TIM_Base_Init(htim);
-    HAL_TIM_ConfigClockSource(htim, &sClockSourceConfig);
-    // Channels
-    sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
-    sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-    sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-    sConfigIC.ICFilter = 0;
-    HAL_TIM_IC_ConfigChannel(htim, &sConfigIC, TIM_CHANNEL_1);
-    HAL_TIM_IC_ConfigChannel(htim, &sConfigIC, TIM_CHANNEL_2);
-    HAL_TIM_IC_ConfigChannel(htim, &sConfigIC, TIM_CHANNEL_3);
-    HAL_TIM_IC_ConfigChannel(htim, &sConfigIC, TIM_CHANNEL_4);
-    // Enable Interrupts
-    HAL_TIM_IC_Start_IT(htim, TIM_CHANNEL_1);
-    HAL_TIM_IC_Start_IT(htim, TIM_CHANNEL_2);
-    HAL_TIM_IC_Start_IT(htim, TIM_CHANNEL_3);
-    HAL_TIM_IC_Start_IT(htim, TIM_CHANNEL_4);
+static void timersync_basic_timer_setup(TIM_TypeDef * pTim) {
+    // timer basics
+    LL_TIM_SetPrescaler(pTim, 0);
+    LL_TIM_SetCounterMode(pTim, LL_TIM_COUNTERMODE_UP);
+    LL_TIM_SetAutoReload(pTim, TIMERSYNC_DEFAULT_ADDEND);
+    LL_TIM_SetClockDivision(pTim, LL_TIM_CLOCKDIVISION_DIV1);
+    LL_TIM_SetRepetitionCounter(pTim, 0);
+
+    LL_TIM_SetClockSource(pTim, LL_TIM_CLOCKSOURCE_INTERNAL);
+
+    // channels
+    uint32_t chConf = LL_TIM_ACTIVEINPUT_DIRECTTI | LL_TIM_ICPSC_DIV1 |
+            LL_TIM_IC_FILTER_FDIV1 | LL_TIM_IC_POLARITY_FALLING;
+    LL_TIM_IC_Config(pTim, LL_TIM_CHANNEL_CH1, chConf);
+    LL_TIM_IC_Config(pTim, LL_TIM_CHANNEL_CH2, chConf);
+    LL_TIM_IC_Config(pTim, LL_TIM_CHANNEL_CH3, chConf);
+    LL_TIM_IC_Config(pTim, LL_TIM_CHANNEL_CH4, chConf);
+
+    // enable channels
+    LL_TIM_CC_EnableChannel(pTim, LL_TIM_CHANNEL_CH1 | LL_TIM_CHANNEL_CH2 |
+            LL_TIM_CHANNEL_CH3 | LL_TIM_CHANNEL_CH4);
+
+    // enable interrupts
+    LL_TIM_EnableIT_CC1(pTim);
+    LL_TIM_EnableIT_CC2(pTim);
+    LL_TIM_EnableIT_CC3(pTim);
+    LL_TIM_EnableIT_CC4(pTim);
 }
+
 void timersync_init_timers() {
     __HAL_RCC_TIM2_CLK_ENABLE();
 
@@ -122,8 +128,7 @@ void timersync_init_timers() {
     ETHHW_AuxTimestampCh(ETH, 0, true);
 
     // base timers and channels
-    TIM_HandleTypeDef htim;
-    timer_sync_basic_timer_setup(&htim);
+    timersync_basic_timer_setup(TIM2);
 
     // CH1 OUTPUT COMPARE // TODO: use this code to produce PPS output with one of the channels
 //    LL_TIM_OC_ConfigOutput(TIM2, LL_TIM_CHANNEL_CH1, LL_TIM_OCPOLARITY_LOW | LL_TIM_OCIDLESTATE_LOW);
@@ -144,7 +149,6 @@ void timersync_init_timers() {
 void timersync_init() {
     timersync_init_gpio();
 
-
     HAL_NVIC_SetPriority(TIM2_IRQn, 15, 15);
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
 
@@ -155,7 +159,6 @@ void timersync_init() {
     //cli_register_command("comp [comp_val] \t\t\tTIM2 CH1 compare value", 1, 1, CB_compare); // TODO: uncomment if PPS output was also required
 }
 
-// --------------------------------------
 
 static double Kp = 0.02;
 static double Kd = 0.03;
@@ -227,7 +230,7 @@ void timersync_run_ctrl(ControllerState * ctrlState, const TimestampI *newTs) {
     ctrlState->err_ns[1] = ctrlState->err_ns[0];
     ctrlState->err_ns[0] = (int64_t) ctrlState->ts[0].nanosec - ((int64_t) ctrlState->ts[0].nanosec > (NANO_PREFIX / 2) ? NANO_PREFIX : 0);
 
-    //MSG("ERR: %09li\n", err_ns[0]);
+    //MSG("ERR: %09li\n", ctrlState->err_ns[0]);
 
 
     if (llabs(ctrlState->err_ns[0]) > 2 * NANO_PREFIX) {
@@ -238,9 +241,9 @@ void timersync_run_ctrl(ControllerState * ctrlState, const TimestampI *newTs) {
         double K = (double) 0xFFFFFFFF / (double)ptpAddend;
         ctrlState->period = (TIMERSYNC_DEFAULT_ADDEND + 1) * K - 1;
 
-        uint32_t jumpPeriod = ctrlState->period - (ctrlState->err_ns[0] / 5) * K;
+        uint32_t jumpPeriod = ctrlState->period - (ctrlState->err_ns[0] / clock_tune) * K;
         LL_TIM_SetAutoReload(ctrlState->pTim, jumpPeriod);
-        //MSG("PERIOD: %09u %09u\n", jumpPeriod, period);
+        MSG("PERIOD: %09u \n", jumpPeriod);
 
         ctrlState->skipCycles = 1;
         ctrlState->err_ns[0] = 0;
@@ -258,16 +261,12 @@ void timersync_run_ctrl(ControllerState * ctrlState, const TimestampI *newTs) {
 
     ctrlState->period = newPeriod;
 
-    //MSG("ARR: %u %.6f\n", period, corr);
+    MSG("ARR: %u %.6f\n", ctrlState->period, corr);
 }
 
 void timersync_stop() {
     LL_TIM_SetSlaveMode(TIM2, LL_TIM_SLAVEMODE_DISABLED);
     LL_TIM_DisableCounter(TIM2);
-    LL_TIM_DisableIT_CC1(TIM2);
-    LL_TIM_DisableIT_CC2(TIM2);
-    LL_TIM_DisableIT_CC3(TIM2);
-    LL_TIM_DisableIT_CC4(TIM2);
 }
 
 static ControllerState sCtrlState[2];
@@ -325,7 +324,7 @@ void timersync_update() {
 }
 
 /* ------------------Full Timestamp Capture ----------------------
-Timer clock = PTP clock (for eg: 190 MHz )
+Timer clock = PTP clock (for eg: 200 MHz )
 PTP_INCREMENT_NSEC = 6
 Subsecond part: k(captured)
 Second part: k(captured)<k(PTP)? Tcap=Tptp : Tcap=Tptp-1 
@@ -336,12 +335,12 @@ static void timersync_process_capture(uint8_t ch, uint32_t ns)
     double freq;
     ETHHW_GetTime(ETH, &ptp_s, &ptp_ns);
     uint32_t s = (ptp_ns > ns) ? ptp_s : (ptp_s - 1);
-    timestampCurrentCapture[ch].sec=s;
-    timestampCurrentCapture[ch].nanosec=ns;
+    //timestampCurrentCapture[ch].sec=s;
+    //timestampCurrentCapture[ch].nanosec=ns;
     MSG("CH%u %u.%09u\n", ch, s, ns);
-    freq=compute_freq_double(ch);
-    MSG("Frequency: %.2f\n",freq);
-    timestampPrevCapture[ch]=timestampCurrentCapture[ch];
+    //freq=compute_freq_double(ch);
+    //MSG("Frequency: %.2f\n",freq);
+    //timestampPrevCapture[ch]=timestampCurrentCapture[ch];
 }
 
 #define CAP_TO_NS(cap,period) (uint32_t)((double)(cap) / (double)(period + 1) * 1E+09)

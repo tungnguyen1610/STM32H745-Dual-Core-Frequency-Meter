@@ -9,7 +9,7 @@ typedef struct {
     TimestampI ts[2];
     uint32_t period;
     int64_t err_ns[2];
-    bool skipCycles;
+    uint8_t skipCycles;
 } ControllerState;
 
 void timersync_init();

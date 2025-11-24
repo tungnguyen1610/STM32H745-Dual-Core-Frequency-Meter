@@ -2,8 +2,8 @@
 #include "freqmeasure.h"
 #include "cliutils/cli.h"
 #include "standard_output/standard_output.h"
-#define TIMCLOCK 190000000.0f
-#define PRESCALAR 1900
+#define TIMCLOCK 200000000.0f
+#define PRESCALAR 2000
 TIM_HandleTypeDef htim3;
 uint32_t captured_value =0;
 uint32_t last_captured_value =0;
@@ -320,10 +320,10 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
             }          
             frequency = TIMCLOCK / ((float)(PRESCALAR) * (float)difference);
             display_frequency = (uint32_t)(frequency);
-                MSGVariable(&display_frequency, 1);
-                __HAL_TIM_SetCounter(htim, 0);
-                is_first_capture=0;
-                overflow_count=0;
+            MSGVariable(&display_frequency, 1);
+            __HAL_TIM_SetCounter(htim, 0);
+            is_first_capture=0;
+            overflow_count=0;
         }
     }
 }

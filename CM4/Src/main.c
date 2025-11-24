@@ -30,7 +30,6 @@
 
 #include "ethernet/ethernet.h"
 #include "timersync/timersync.h"
-#include "timersync/timerdivider.h"
 #include "timersync/freqmeasure.h"
 
 #define FLEXPTP_INITIAL_PROFILE ("gPTP")
@@ -139,7 +138,6 @@ int main(void)
     attr.stack_size = 2048;
     attr.name = "init";
     osThreadNew(task_startup, NULL, &attr);
-    //osThreadNew(pwm_task, NULL, &attr);
     // start the FreeRTOS!
     osKernelStart();
 

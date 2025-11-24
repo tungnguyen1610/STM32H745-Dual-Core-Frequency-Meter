@@ -8,21 +8,20 @@
 #include "cmsis_os2.h"
 
 // Define the tags and their corresponding index used in ssi_handler
-char const* SSI_TAGS[] = {"x", "y", "z"};
+char const* SSI_TAGS[] = {"x", "y", "z","w"};
 char const** TAGS = SSI_TAGS;
 #define NUM_SSI_TAGS 3
+extern uint16_t freqChannels[4];
 // Define status strings
-#define SSI_LED_ON  "ON"
-#define SSI_LED_OFF "OFF"
 
-int get_freq_ch0() {return HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5);}
-int get_freq_ch1() {return HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_1);}
-int get_freq_ch2() {return HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14);}
-
+int get_freq_ch0() {return freqChannels[0];}
+int get_freq_ch1() {return freqChannels[1];}
+int get_freq_ch2() {return freqChannels[2];}
+int get_freq_ch3() {return freqChannels[3];}
+ 
 uint16_t ssi_handler (int iIndex, char *pcInsert, int iInsertLen)
 {
-    char *status;
-    int state=0;
+    uint16_t state=0;
     switch (iIndex) {
 		case 0:
             state=get_freq_ch0();
@@ -33,15 +32,13 @@ uint16_t ssi_handler (int iIndex, char *pcInsert, int iInsertLen)
 		case 2:
             state=get_freq_ch2();
 			break;
+        case 3:
+            state=get_freq_ch3();
+            break;
 		default :
             return 0;
 	}
-    if (state){
-        status = SSI_LED_ON;
-    } else {
-        status = SSI_LED_OFF;
-    }
-    snprintf(pcInsert,10,"%s",status);
+    sprintf(pcInsert,"%d",state);
     return strlen(pcInsert);
 }
 
@@ -50,5 +47,5 @@ void http_sever_init()
 
 //	sys_thread_new("http_thread",(osThreadFunc_t)&http_thread, NULL, DEFAULT_THREAD_STACKSIZE, osPriorityNormal);
 	httpd_init();
-    http_set_ssi_handler(ssi_handler, (char const **)TAGS, 3);
+    http_set_ssi_handler(ssi_handler, (char const **)TAGS, 4);
 }
