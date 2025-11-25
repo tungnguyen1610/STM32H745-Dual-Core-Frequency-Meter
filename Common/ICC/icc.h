@@ -21,6 +21,7 @@ typedef struct {
     uint32_t pSevenBoundVariable;
 } ICC_SharedData;
 
+
 #define ICC_WAKEUP_SEMID (0) // semaphore ID for wakeing up the CM4 core from the CM7 core
 
 #define ICC_SEVENBOUND_SEMID (1) // semaphore IDs for communication between the cores

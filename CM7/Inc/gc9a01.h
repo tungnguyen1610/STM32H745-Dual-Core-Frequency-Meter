@@ -38,5 +38,5 @@ void GC9A01_DrawPixel(uint16_t x, uint16_t y, uint16_t color);
 void GC9A01_DrawChar(uint16_t x, uint16_t y, char c, uint16_t color, uint16_t background_color);
 void GC9A01_WriteString(uint16_t x, uint16_t y, const char *str, uint16_t color, uint16_t background_color);
 void GC9A01_DisplayStats(int ch0_freq, int ch1_freq, int ch2_freq, int ch3_freq);
-
+void  GC9A01_DisplayUpdate(int ch0_freq, int ch1_freq, int ch2_freq, int ch3_freq);
 #endif

@@ -101,7 +101,6 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
     PeriphClkInitStruct.Spi45ClockSelection = RCC_SPI45CLKSOURCE_D2PCLK1;
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
     {
-      Error_Handler();
     }
 
     /* Peripheral clock enable */
@@ -127,7 +126,6 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
     /* USER CODE END SPI5_MspInit 1 */
 
   }
-
 }
 
 /**

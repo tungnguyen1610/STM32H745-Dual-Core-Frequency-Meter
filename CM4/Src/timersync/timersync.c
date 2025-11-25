@@ -61,6 +61,7 @@ therefore if we have 1kHz signal -> TIM1 frequency = 500Hz
 - CH3: PB10
 - CH4: PA3
 */
+
 void timersync_init_gpio()
 {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -80,7 +81,7 @@ void timersync_init_gpio()
     // CH3
     GPIO_InitStruct.Pin = GPIO_PIN_10;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-    //CH 4
+    //CH4
     GPIO_InitStruct.Pin = GPIO_PIN_3;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 }
