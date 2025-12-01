@@ -180,6 +180,7 @@ void divider_input_signal_start()
     TIM1->CCR1= (uint32_t)((TIM1->ARR+1)/2);
     HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
 }
+
 void MX_TIM3_Init()
 {
   /* USER CODE BEGIN TIM3_Init 0 */

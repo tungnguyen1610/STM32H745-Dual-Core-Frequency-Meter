@@ -11,11 +11,10 @@
 #define clock_tune (1000.0/200.0)
 #define MIN(a,b) ((a < b) ? (a) : (b))
 #define MAX(a,b) ((a > b) ? (a) : (b))
-uint32_t freqChannels[4]={1000,0,0,0};
+double freqChannels[4]={0.0,0.0,0.0,0.0};
 extern TIM_HandleTypeDef htim1;
-/*
-TimestampI timestampCurrentCapture[4];
-TimestampI timestampPrevCapture[4];
+static TimestampI timestampCurrentCapture[4];
+static TimestampI timestampPrevCapture[4];
 static bool compute_dt(int idx, int64_t *out_dt_sec, int64_t *out_dt_ns_total) 
 {
     int64_t diff_sec  = timestampCurrentCapture[idx].sec - timestampPrevCapture[idx].sec;
@@ -29,20 +28,34 @@ static bool compute_dt(int idx, int64_t *out_dt_sec, int64_t *out_dt_ns_total)
     // sanity checks
     if (diff_sec < 0) return false;   // timestamps went backwards / capture error
     if (diff_sec == 0 && diff_nsec == 0) return false; // zero interval -> avoid divide-by-zero
-
     *out_dt_sec = diff_sec;
     *out_dt_ns_total = diff_sec * 1000000000LL + diff_nsec;
+    if (*out_dt_ns_total > 1500000000LL || *out_dt_ns_total < 500000000LL)
+    {
+        MSG("Skip cycle,lose second sync\n");
+        return false;
+    }
+    
     return true;
 }
 double compute_freq_double(int idx) 
 {   
     int64_t dt_sec;
     int64_t dt_ns;
-    if (!compute_dt(idx, &dt_sec, &dt_ns)) return -1.0; // error sentinel
+    uint32_t divider=1;
+    if (!compute_dt(idx, &dt_sec, &dt_ns)) return 0.0; // error sentinel
     double dt_total = (double)dt_ns * 1e-9; // exactly the interval in seconds
-    freqChannels[idx]=TIM1->ARR;
-    dt_total=dt_total/freqChannels[idx]; // average period if divider used
+    if (!idx)
+    {
+        divider=TIM1->ARR;
+    }
+    else
+    {
+        divider=1;
+    }
+    dt_total=dt_total/divider; // average period if divider used
     double freq = (double)(1.0) / dt_total; // Hz
+    freqChannels[idx]= (freq);
     return freq;
 }
 
@@ -244,11 +257,9 @@ void timersync_run_ctrl(ControllerState * ctrlState, const TimestampI *newTs) {
 
         uint32_t jumpPeriod = ctrlState->period - (ctrlState->err_ns[0] / clock_tune) * K;
         LL_TIM_SetAutoReload(ctrlState->pTim, jumpPeriod);
-        MSG("PERIOD: %09u \n", jumpPeriod);
-
+//        MSG("PERIOD: %09u \n", jumpPeriod);
         ctrlState->skipCycles = 1;
         ctrlState->err_ns[0] = 0;
-
         return;
     }
 
@@ -268,6 +279,10 @@ void timersync_run_ctrl(ControllerState * ctrlState, const TimestampI *newTs) {
 void timersync_stop() {
     LL_TIM_SetSlaveMode(TIM2, LL_TIM_SLAVEMODE_DISABLED);
     LL_TIM_DisableCounter(TIM2);
+    LL_TIM_DisableIT_CC1(TIM2);
+    LL_TIM_DisableIT_CC2(TIM2);
+    LL_TIM_DisableIT_CC3(TIM2);
+    LL_TIM_DisableIT_CC4(TIM2);
 }
 
 static ControllerState sCtrlState[2];
@@ -281,7 +296,7 @@ void timersync_start() {
     MX_TIM1_External();
     HAL_TIM_Base_Start_IT(&htim1);
     divider_input_signal_start();
-    //LL_TIM_SetSlaveMode(TIM2, LL_TIM_SLAVEMODE_TRIGGER);
+    LL_TIM_SetSlaveMode(TIM2, LL_TIM_SLAVEMODE_TRIGGER);
 }
 
 // --------------------------------------
@@ -330,18 +345,32 @@ PTP_INCREMENT_NSEC = 6
 Subsecond part: k(captured)
 Second part: k(captured)<k(PTP)? Tcap=Tptp : Tcap=Tptp-1 
 */
+# define TIM_SYNC_ERROR_MAX 100000 // 1 microsecond maximum 
 static void timersync_process_capture(uint8_t ch, uint32_t ns) 
 {
     uint32_t ptp_s, ptp_ns;
     double freq;
     ETHHW_GetTime(ETH, &ptp_s, &ptp_ns);
-    uint32_t s = (ptp_ns > ns) ? ptp_s : (ptp_s - 1);
-    //timestampCurrentCapture[ch].sec=s;
-    //timestampCurrentCapture[ch].nanosec=ns;
+    uint32_t s = (ptp_ns > ns) ? (ptp_s) : (ptp_s - 1);
+    timestampCurrentCapture[ch].sec=s;
+    timestampCurrentCapture[ch].nanosec=ns;
     MSG("CH%u %u.%09u\n", ch, s, ns);
-    //freq=compute_freq_double(ch);
-    //MSG("Frequency: %.2f\n",freq);
-    //timestampPrevCapture[ch]=timestampCurrentCapture[ch];
+    freq=compute_freq_double(ch);
+    if (freq)
+    {
+    MSG("Frequency: %.6f\n",freq);
+    MSG("\n");
+    }
+    timestampPrevCapture[ch].sec= s;
+    timestampPrevCapture[ch].nanosec= ns;
+    /*
+    if (d.sec>=1 && d.nanosec>NANO_PREFIX/2 )   
+    {
+        MSG("Skip cycle, second jumping\n");
+        return;
+    }
+    */
+    //MSG("ethsec: %u.%09u\n",ptp_s,ptp_ns);
 }
 
 #define CAP_TO_NS(cap,period) (uint32_t)((double)(cap) / (double)(period + 1) * 1E+09)

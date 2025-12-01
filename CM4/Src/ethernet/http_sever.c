@@ -14,14 +14,14 @@ char const** TAGS = SSI_TAGS;
 extern uint16_t freqChannels[4];
 // Define status strings
 
-int get_freq_ch0() {return freqChannels[0];}
-int get_freq_ch1() {return freqChannels[1];}
-int get_freq_ch2() {return freqChannels[2];}
-int get_freq_ch3() {return freqChannels[3];}
+double get_freq_ch0() {return freqChannels[0];}
+double get_freq_ch1() {return freqChannels[1];}
+double get_freq_ch2() {return freqChannels[2];}
+double get_freq_ch3() {return freqChannels[3];}
  
 uint16_t ssi_handler (int iIndex, char *pcInsert, int iInsertLen)
 {
-    uint16_t state=0;
+    double state=0.0;
     switch (iIndex) {
 		case 0:
             state=get_freq_ch0();
@@ -38,7 +38,7 @@ uint16_t ssi_handler (int iIndex, char *pcInsert, int iInsertLen)
 		default :
             return 0;
 	}
-    sprintf(pcInsert,"%d",state);
+    sprintf(pcInsert,"%.6f",state);
     return strlen(pcInsert);
 }
 
