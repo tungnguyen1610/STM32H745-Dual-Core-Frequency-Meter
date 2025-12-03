@@ -86,7 +86,7 @@ a lot of data that needs to be copied, this should be set high. */
 /* ---------- Pbuf options ---------- */
 /* PBUF_POOL_SIZE: the number of buffers in the pbuf pool.
    @ note: used to allocate Tx pbufs only */
-#define PBUF_POOL_SIZE          8
+#define PBUF_POOL_SIZE          32
 
 /* PBUF_POOL_BUFSIZE: the size of each pbuf in the pbuf pool. */
 #define PBUF_POOL_BUFSIZE       1528
@@ -225,6 +225,7 @@ The STM32H7xx allows computing and verifying the IP, UDP, TCP and ICMP checksums
  * LWIP_NETCONN==1: Enable Netconn API (require to use api_lib.c)
  */
 #define LWIP_NETCONN           1
+#define LWIP_TCPIP_CORE_LOCKING 1
 
 /*
    ------------------------------------

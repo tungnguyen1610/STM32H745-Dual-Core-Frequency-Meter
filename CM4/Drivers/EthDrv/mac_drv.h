@@ -88,6 +88,7 @@ void ETHHW_Start(ETH_TypeDef *eth);
 void ETHHW_Transmit(ETH_TypeDef *eth, const uint8_t *buf, uint16_t len, uint8_t txOpts, void *txOptArgs);
 
 void ETHHW_ProcessRx(ETH_TypeDef *eth);
+void ETHHW_ProcessTx(ETH_TypeDef *eth);
 
 void ETHHW_SetLinkProperties(ETH_TypeDef *eth, bool fastEthernet, bool fullDuplex);
 

@@ -30,7 +30,34 @@
 #include "standard_output/standard_output.h"
 
 #include <string.h>
+#include "cmsis_os2.h"
 
+osEventFlagsId_t eth_tx_event;
+static osThreadId_t eth_tx_task_handle;
+
+#define ETH_TX_EVENT   (1U << 0)
+
+
+static void eth_tx_task(void *arg)
+{
+    for (;;)
+    {
+        osEventFlagsWait(eth_tx_event,
+                         ETH_TX_EVENT,
+                         osFlagsWaitAny,
+                         osWaitForever);
+
+#if LWIP_TCPIP_CORE_LOCKING
+        LOCK_TCPIP_CORE();
+#endif
+
+        ETHHW_ProcessTx(ETH);   // ✅ SAFE HERE
+
+#if LWIP_TCPIP_CORE_LOCKING
+        UNLOCK_TCPIP_CORE();
+#endif
+    }
+}
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 // -------------------------------------
@@ -133,6 +160,17 @@ static void low_level_init(struct netif *netif) {
     ETHHW_Init(ETH, &opts);
 
     ETHHW_Start(ETH);
+     // ✅ CREATE TX EVENT FLAG
+    eth_tx_event = osEventFlagsNew(NULL);
+
+    // ✅ CREATE TX TASK
+    osThreadAttr_t tx_attr = {
+        .name = "eth_tx",
+        .stack_size = 1024,
+        .priority = osPriorityNormal
+    };
+
+    eth_tx_task_handle = osThreadNew(eth_tx_task, NULL, &tx_attr);
 
     // -------- Process PHY events occured during the initialization phase
 

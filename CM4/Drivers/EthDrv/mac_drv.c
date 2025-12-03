@@ -6,6 +6,11 @@
 
 #include <stm32h7xx_hal.h>
 
+#include "cmsis_os2.h"
+
+extern osEventFlagsId_t eth_tx_event;
+
+#define ETH_TX_EVENT   (1U << 0)
 __weak uint32_t ETHHW_setupPHY(ETH_TypeDef *eth) {
     (void)eth;
     return MODEINIT_FULL_DUPLEX | MODEINIT_SPEED_100MBPS;
@@ -465,19 +470,21 @@ void ETHHW_ISR(ETH_TypeDef *eth) {
     if (csr & ETH_DMACSR_NIS) {    // Normal Interrupt Summary
         if (csr & ETH_DMACSR_RI) { // Receive Interrupt
             SET_BIT(ETH->DMACSR, ETH_DMACSR_RI);
-            SET_BIT(ETH->DMACSR, ETH_DMACSR_NIS);
+            //SET_BIT(ETH->DMACSR, ETH_DMACSR_NIS);
 
             ETHHW_EventDesc evt;
             evt.type = ETHHW_EVT_RX_NOTFY;
             ETHHW_EventCallback(&evt);
         } else if (csr & ETH_DMACSR_TI) { // Transmit Interrupt
             SET_BIT(ETH->DMACSR, ETH_DMACSR_TI);
-
-            ETHHW_ProcessTx(eth);
+            //SET_BIT(ETH->DMACSR, ETH_DMACSR_NIS);
+            osEventFlagsSet(eth_tx_event, ETH_TX_EVENT);
+                // ETHHW_ProcessTx(eth);
         }
+                    SET_BIT(ETH->DMACSR, ETH_DMACSR_NIS);
     }
 
-    SET_BIT(ETH->DMACSR, ETH_DMACSR_NIS);
+    //SET_BIT(ETH->DMACSR, ETH_DMACSR_NIS);
 }
 
 void ETHHW_Transmit(ETH_TypeDef *eth, const uint8_t *buf, uint16_t len, uint8_t txOpts, void *txOptArgs) {

@@ -70,6 +70,7 @@ void init_ethernet() {
     //ip_addr_set_zero_ip4(&ipaddr);
     //ip_addr_set_zero_ip4(&netmask);
     //ip_addr_set_zero_ip4(&router);
+    /*
     IP4_ADDR(&ipaddr, 192, 168, 10, 11);
     IP4_ADDR(&netmask, 255, 255, 255, 0);
     IP4_ADDR(&router, 192, 168, 10, 10);
@@ -81,6 +82,7 @@ void init_ethernet() {
               NULL,
               ethernetif_init,
               tcpip_input);
+    */
 
     // make it default
     netif_set_default(&intf);
