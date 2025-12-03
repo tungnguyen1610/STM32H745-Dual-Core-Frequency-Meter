@@ -10,6 +10,7 @@
 #include "standard_output/standard_output.h"
 #include <stdbool.h>
 #include <stddef.h>
+#include "http_sever.h"
 
 #define PRINT_IPv4(ip) MSG("%u.%u.%u.%u", (ip & 0xFF), ((ip >> 8) & 0xFF), ((ip >> 16) & 0xFF), ((ip >> 24) & 0xFF))
 
@@ -44,7 +45,6 @@ void link_chg_cb(struct netif *netif) {
         LinkState *linkState = (LinkState *)netif->state;
         MSG("(%u Mbps, %s duplex)\n", linkState->speed, linkState->duplex ? "FULL" : "HALF");
     }
-
     if (ls) {
         dhcp_start(netif);
     } else {
@@ -65,15 +65,22 @@ void interface_print_infor (const struct netif *intf)
 }
 void init_ethernet() {
     // initialize lwIP
-    tcpip_init(NULL, NULL);
+    //tcpip_init(NULL, NULL);
+    
     // clear all associated addresses
     //ip_addr_set_zero_ip4(&ipaddr);
     //ip_addr_set_zero_ip4(&netmask);
     //ip_addr_set_zero_ip4(&router);
+    // 1. Initialize LwIP and pass the callback.
+    // The second argument is passed to the callback function. We pass the netif structure.
+    tcpip_init(lwip_ready_callback, &intf);
+    
+    // 2. Configure static IP addresses (can be done before or after tcpip_init)
     /*
     IP4_ADDR(&ipaddr, 192, 168, 10, 11);
     IP4_ADDR(&netmask, 255, 255, 255, 0);
     IP4_ADDR(&router, 192, 168, 10, 10);
+
     // add network interface
     netif_add(&intf,
               &ipaddr,
@@ -83,6 +90,19 @@ void init_ethernet() {
               ethernetif_init,
               tcpip_input);
     */
+     // clear all associated addresses
+    ip_addr_set_zero_ip4(&ipaddr);
+    ip_addr_set_zero_ip4(&netmask);
+    ip_addr_set_zero_ip4(&router);
+
+    // add network interface
+    netif_add(&intf,
+              &ipaddr,
+              &netmask,
+              &router,
+              NULL,
+              ethernetif_init,
+              tcpip_input);
 
     // make it default
     netif_set_default(&intf);
@@ -92,11 +112,11 @@ void init_ethernet() {
     MSG("\n---- \n");
     interface_print_infor(&intf);
     MSG("---- \n\n");
-    // init http sever
+    // init http sever template
     http_sever_init();
     // initialize and start the DHCP-handling
-   // checkDhcpTmr = osTimerNew(check_dhcp_state, osTimerPeriodic, NULL, NULL);
-   // osTimerStart(checkDhcpTmr, 1000);
+    checkDhcpTmr = osTimerNew(check_dhcp_state, osTimerPeriodic, NULL, NULL);
+    osTimerStart(checkDhcpTmr, 1000);
 }
 
 __attribute__((weak)) err_t hook_unknown_ethertype(struct pbuf *pbuf, struct netif *netif) {

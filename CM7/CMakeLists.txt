@@ -18,7 +18,8 @@ set(cpu_PARAMS ${cpu_PARAMS}
 	
 )
 
-# Linker script
+# Linker scriptsudo systemctl status dnsmasq
+
 set(linker_script_SRC ${linker_script_SRC}
     ${CMAKE_CURRENT_SOURCE_DIR}/stm32h745zitx_CM7.ld
 )
