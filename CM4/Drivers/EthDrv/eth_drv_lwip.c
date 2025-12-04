@@ -32,32 +32,7 @@
 #include <string.h>
 #include "cmsis_os2.h"
 
-osEventFlagsId_t eth_tx_event;
-static osThreadId_t eth_tx_task_handle;
-
-#define ETH_TX_EVENT   (1U << 0)
-
-
-static void eth_tx_task(void *arg)
-{
-    for (;;)
-    {
-        osEventFlagsWait(eth_tx_event,
-                         ETH_TX_EVENT,
-                         osFlagsWaitAny,
-                         osWaitForever);
-
-#if LWIP_TCPIP_CORE_LOCKING
-        LOCK_TCPIP_CORE();
-#endif
-
-        ETHHW_ProcessTx(ETH);   // ✅ SAFE HERE
-
-#if LWIP_TCPIP_CORE_LOCKING
-        UNLOCK_TCPIP_CORE();
-#endif
-    }
-}
+static osMessageQueueId_t rx_msg_q;
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 // -------------------------------------
@@ -125,6 +100,10 @@ static void phy_thread(void *arg) {
     }
     return;
 }
+#define RX_MSG_Q_LEN (32)
+
+static void rx_thread(void *arg);
+
 
 // ------------------------------
 
@@ -160,17 +139,6 @@ static void low_level_init(struct netif *netif) {
     ETHHW_Init(ETH, &opts);
 
     ETHHW_Start(ETH);
-     // ✅ CREATE TX EVENT FLAG
-    eth_tx_event = osEventFlagsNew(NULL);
-
-    // ✅ CREATE TX TASK
-    osThreadAttr_t tx_attr = {
-        .name = "eth_tx",
-        .stack_size = 1024,
-        .priority = osPriorityNormal
-    };
-
-    eth_tx_task_handle = osThreadNew(eth_tx_task, NULL, &tx_attr);
 
     // -------- Process PHY events occured during the initialization phase
 
@@ -182,7 +150,12 @@ static void low_level_init(struct netif *netif) {
     th = osThreadNew(phy_thread, NULL, &attr);
 
     // -------------------------------------------------------------------
-
+    // start receive thread
+    //memset(&attr, 0, sizeof(attr));
+    //attr.stack_size = 2048;
+    //attr.name = "rx";
+    //osThreadNew(rx_thread, NULL, &attr);
+    
     /* set MAC hardware address length */
     netif->hwaddr_len = ETHARP_HWADDR_LEN;
 
@@ -278,6 +251,78 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p) {
 
     return ERR_OK;
 }
+
+static void rx_thread(void *arg) {
+    ETHHW_EventDesc evt;
+
+    while (true) {
+
+        /* get event */
+        if (osMessageQueueGet(rx_msg_q, &evt, NULL, osWaitForever) != osOK) {
+            continue;
+        }
+
+        /* move received packet into a new pbuf */
+        struct pbuf *p, *q;
+        /* We allocate a pbuf chain of pbufs from the pool. */
+        p = pbuf_alloc(PBUF_RAW, evt.data.rx.size, PBUF_POOL);
+
+        if (p != NULL) {
+            /* save size waiting for being stored */
+            u16_t size_left = evt.data.rx.size;
+
+            /* We iterate over the pbuf chain until we have read the entire
+             * packet into the pbuf. */
+            for (q = p; (q != NULL) && (size_left > 0); q = q->next) {
+                /* Read enough bytes to fill this pbuf in the chain. The
+                 * available data in the pbuf is given by the q->len
+                 * variable.
+                 * This does not necessarily have to be a memcpy, you can also preallocate
+                 * pbufs for a DMA-enabled MAC and after receiving truncate it to the
+                 * actually received size. In this case, ensure the tot_len member of the
+                 * pbuf is the sum of the chained pbuf len members.
+                 */
+
+                /* compute copy size and copy */
+                u16_t copy_size = MIN(size_left, q->len);
+                memcpy(q->payload, evt.data.rx.payload, copy_size);
+                size_left -= copy_size;
+            }
+
+            /* Copy the timestamp into the first pbuf */
+            p->time_s = evt.data.rx.ts_s;
+            p->time_ns = evt.data.rx.ts_ns;
+
+            MIB2_STATS_NETIF_ADD(netif, ifinoctets, p->tot_len);
+            if (((u8_t *)p->payload)[0] & 1) {
+                /* broadcast or multicast packet*/
+                MIB2_STATS_NETIF_INC(netif, ifinnucastpkts);
+            } else {
+                /* unicast packet*/
+                MIB2_STATS_NETIF_INC(netif, ifinucastpkts);
+            }
+        } else {
+            LINK_STATS_INC(link.memerr);
+            LINK_STATS_INC(link.drop);
+            MIB2_STATS_NETIF_INC(netif, ifindiscards);
+        }
+
+        /* if no packet could be read, silently ignore this */
+        if (p != NULL) {
+            /* pass all packets to ethernet_input, which decides what packets it supports */
+            if (if0->input(p, if0) != ERR_OK) {
+                LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_input: IP input error\n"));
+                pbuf_free(p);
+                p = NULL;
+            }
+        }
+
+        /* release the RX descriptors */
+        ETHHW_RestoreRXDesc(evt.bd);
+        ETHHW_RestoreRXDesc(evt.bd_ctx);
+    }
+}
+
 
 int ETHHW_ReadCallback(ETHHW_EventDesc *evt) {
     // packet reception

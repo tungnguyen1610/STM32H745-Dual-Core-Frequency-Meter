@@ -9,11 +9,13 @@
 #include "cmsis_os2.h"
 
 // Define the tags and their corresponding index used in ssi_handler
-char const* SSI_TAGS[] = {"x", "y", "z","w"};
+char const* SSI_TAGS[] = {"x", "y", "z","w","tslog"};
 char const** TAGS = SSI_TAGS;
-#define NUM_SSI_TAGS 4 // Corrected to 4 for x, y, z, w
-
+#define NUM_SSI_TAGS 5 // Corrected to 5 for x, y, z, w, tslog
+#define NUM_TIMESTAMP_LOG 10
 extern uint16_t freqChannels[4]; // External variable declaration
+extern char timestampLog[10][32]; // External variable declaration
+extern uint8_t tslog_head;
 
 double get_freq_ch0() {return freqChannels[0];}    
 
@@ -26,25 +28,40 @@ uint16_t ssi_handler (int iIndex, char *pcInsert, int iInsertLen)
     // Note: Using float/double here might still be relatively slow.
     // If performance is still an issue, consider sending scaled integers.
     double state = 0.0;
+    uint16_t len=0;
     switch (iIndex) {
         case 0:
             state=get_freq_ch0();
+            len = snprintf(pcInsert, iInsertLen, "%.6f", state);
             break;
         case 1:
             state=get_freq_ch1();
+            len = snprintf(pcInsert, iInsertLen, "%.6f", state);
             break;
         case 2:
             state=get_freq_ch2();
+            len = snprintf(pcInsert, iInsertLen, "%.6f", state);
             break;
         case 3:
             state=get_freq_ch3();
+            len = snprintf(pcInsert, iInsertLen, "%.6f", state);
+            break;
+        case 4:
+            len=0;
+            // for tslog, get timestamp data from timsync module
+            for (int i = 0; i < 10; ++i) 
+            { 
+                int idx = (tslog_head + i) % 10; 
+                len += snprintf(pcInsert + len, iInsertLen - len, "%s\n", timestampLog[idx]);
+                if (len >= iInsertLen - 1) break;
+            }
             break;
         default :
-            return 0;
-    }
+            len = 0;
+            break;
+        }
     // Limit output precision to fit within the buffer size (iInsertLen)
-    int len = snprintf(pcInsert, iInsertLen, "%.6f", state);
-    return (uint16_t)((len > 0) ? len : 0);
+    return len;
 }
 
 // The function that will be executed inside the LwIP thread when the stack is ready.

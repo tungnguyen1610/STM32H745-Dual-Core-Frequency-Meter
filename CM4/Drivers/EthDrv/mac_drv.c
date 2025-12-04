@@ -234,7 +234,7 @@ ETHHW_DescFull *ETHHW_AdvanceDesc(ETHHW_DescFull *start, uint16_t n, ETHHW_DescF
 #define ETHHW_DESC_PREV(s, n, p) ETHHW_AdvanceDesc((s), (n), (p), -1)
 #define ETHHW_DESC_NEXT(s, n, p) ETHHW_AdvanceDesc((s), (n), (p), 1)
 
-static void ETHHW_RestoreRXDesc(ETHHW_DescFull *bd) {
+void ETHHW_RestoreRXDesc(ETHHW_DescFull *bd) {
     bd->desc.DES0 = bd->ext.bufAddr;                                                          // store Buffer 1 address
     bd->desc.DES3 = 0 | ETH_DMARXNDESCRF_OWN | ETH_DMARXNDESCRF_IOC | ETH_DMARXNDESCRF_BUF1V; // set flags: OWN, IOC, BUF1V
 }
@@ -478,8 +478,7 @@ void ETHHW_ISR(ETH_TypeDef *eth) {
         } else if (csr & ETH_DMACSR_TI) { // Transmit Interrupt
             SET_BIT(ETH->DMACSR, ETH_DMACSR_TI);
             //SET_BIT(ETH->DMACSR, ETH_DMACSR_NIS);
-            osEventFlagsSet(eth_tx_event, ETH_TX_EVENT);
-                // ETHHW_ProcessTx(eth);
+             ETHHW_ProcessTx(eth);
         }
                     SET_BIT(ETH->DMACSR, ETH_DMACSR_NIS);
     }

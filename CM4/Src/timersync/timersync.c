@@ -4,6 +4,7 @@
 #include "EthDrv/mac_drv.h"
 #include <stm32h7xx_ll_tim.h>
 #include "stdlib.h"
+#include <stdio.h>
 #include "flexptp/timeutils.h"
 #include "standard_output/standard_output.h"
 #include "freqmeasure.h"
@@ -11,7 +12,9 @@
 #define clock_tune (1000.0/200.0)
 #define MIN(a,b) ((a < b) ? (a) : (b))
 #define MAX(a,b) ((a > b) ? (a) : (b))
-double freqChannels[4]={0.0,0.0,0.0,0.0};
+double freqChannels[4]={1000.0,0.0,0.0,0.0};
+char timestampLog[10][32];
+uint8_t tslog_head=0;
 extern TIM_HandleTypeDef htim1;
 static TimestampI timestampCurrentCapture[4];
 static TimestampI timestampPrevCapture[4];
@@ -355,6 +358,8 @@ static void timersync_process_capture(uint8_t ch, uint32_t ns)
     timestampCurrentCapture[ch].sec=s;
     timestampCurrentCapture[ch].nanosec=ns;
     MSG("CH%u %u.%09u\n", ch, s, ns);
+    snprintf(timestampLog[tslog_head++], sizeof(timestampLog[tslog_head++]), "CH%u %u.%09u\n", ch, s, ns);
+    if (tslog_head>9) tslog_head=0;
     freq=compute_freq_double(ch);
     if (freq)
     {

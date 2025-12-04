@@ -83,6 +83,12 @@ a lot of data that needs to be copied, this should be set high. */
    /** Custom tag */ \
    void * tag;
 
+#define LWIP_PBUF_CUSTOM_DATA_INIT(p) \
+   p->time_s = 0;   \
+   p->time_ns = 0;  \
+   p->tx_cb = NULL; \
+   p->tag = NULL;
+
 /* ---------- Pbuf options ---------- */
 /* PBUF_POOL_SIZE: the number of buffers in the pbuf pool.
    @ note: used to allocate Tx pbufs only */
