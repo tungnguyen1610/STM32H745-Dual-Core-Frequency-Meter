@@ -13,7 +13,7 @@ char const* SSI_TAGS[] = {"x", "y", "z","w","tslog"};
 char const** TAGS = SSI_TAGS;
 #define NUM_SSI_TAGS 5 // Corrected to 5 for x, y, z, w, tslog
 #define NUM_TIMESTAMP_LOG 10
-extern uint16_t freqChannels[4]; // External variable declaration
+extern double freqChannels[4]; // External variable declaration
 extern char timestampLog[10][32]; // External variable declaration
 extern uint8_t tslog_head;
 
@@ -28,7 +28,7 @@ uint16_t ssi_handler (int iIndex, char *pcInsert, int iInsertLen)
     // Note: Using float/double here might still be relatively slow.
     // If performance is still an issue, consider sending scaled integers.
     double state = 0.0;
-    uint16_t len=0;
+    int len=0;
     switch (iIndex) {
         case 0:
             state=get_freq_ch0();

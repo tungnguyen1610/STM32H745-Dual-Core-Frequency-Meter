@@ -76,7 +76,7 @@ void init_ethernet() {
     tcpip_init(lwip_ready_callback, &intf);
     
     // 2. Configure static IP addresses (can be done before or after tcpip_init)
-    /*
+    
     IP4_ADDR(&ipaddr, 192, 168, 10, 11);
     IP4_ADDR(&netmask, 255, 255, 255, 0);
     IP4_ADDR(&router, 192, 168, 10, 10);
@@ -89,21 +89,7 @@ void init_ethernet() {
               NULL,
               ethernetif_init,
               tcpip_input);
-    */
-     // clear all associated addresses
-    ip_addr_set_zero_ip4(&ipaddr);
-    ip_addr_set_zero_ip4(&netmask);
-    ip_addr_set_zero_ip4(&router);
-
-    // add network interface
-    netif_add(&intf,
-              &ipaddr,
-              &netmask,
-              &router,
-              NULL,
-              ethernetif_init,
-              tcpip_input);
-
+    
     // make it default
     netif_set_default(&intf);
     // register a link change callback
@@ -115,8 +101,8 @@ void init_ethernet() {
     // init http sever template
     http_sever_init();
     // initialize and start the DHCP-handling
-    checkDhcpTmr = osTimerNew(check_dhcp_state, osTimerPeriodic, NULL, NULL);
-    osTimerStart(checkDhcpTmr, 1000);
+    //checkDhcpTmr = osTimerNew(check_dhcp_state, osTimerPeriodic, NULL, NULL);
+    //osTimerStart(checkDhcpTmr, 1000);
 }
 
 __attribute__((weak)) err_t hook_unknown_ethertype(struct pbuf *pbuf, struct netif *netif) {

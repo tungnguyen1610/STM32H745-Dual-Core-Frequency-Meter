@@ -45,7 +45,7 @@ void init_osc_and_clk() {
      // Configure the Main PLL.
  
      osc.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-     osc.HSEState = RCC_HSE_BYPASS; // TODO: turn HSE bypass OFF if using X3 instead of the board controller's clock output
+     osc.HSEState = RCC_HSE_ON; // TODO: turn HSE bypass OFF if using X3 instead of the board controller's clock output
      osc.HSIState = RCC_HSI_OFF;
      osc.CSIState = RCC_CSI_OFF;
      osc.PLL.PLLState = RCC_PLL_ON;

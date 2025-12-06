@@ -2,8 +2,8 @@
 #include "freqmeasure.h"
 #include "cliutils/cli.h"
 #include "standard_output/standard_output.h"
-#define TIMCLOCK 200000000.0f
-#define PRESCALAR 2000
+#define TIMCLOCK 210000000.0f
+#define PRESCALAR 2100
 TIM_HandleTypeDef htim3;
 uint32_t captured_value =0;
 uint32_t last_captured_value =0;

@@ -7,17 +7,25 @@
 #include <stdio.h>
 #include "flexptp/timeutils.h"
 #include "standard_output/standard_output.h"
+#include "timersync.h"
 #include "freqmeasure.h"
 
 #define clock_tune (1000.0/200.0)
 #define MIN(a,b) ((a < b) ? (a) : (b))
 #define MAX(a,b) ((a > b) ? (a) : (b))
-double freqChannels[4]={1000.0,0.0,0.0,0.0};
-char timestampLog[10][32];
-uint8_t tslog_head=0;
+double freqChannels[4]={0.0,0.0,0.0,0.0};
+#define TSLOG_SIZE 10
+char timestampLog[TSLOG_SIZE][32];
+int tslog_head = 0;
 extern TIM_HandleTypeDef htim1;
 static TimestampI timestampCurrentCapture[4];
 static TimestampI timestampPrevCapture[4];
+
+void tslog_add(uint8_t ch, uint32_t s, uint32_t ns) {
+    snprintf(timestampLog[tslog_head], sizeof(timestampLog[tslog_head]),
+             "CH%u %u.%09u", ch, s, ns);
+    tslog_head = (tslog_head + 1) % TSLOG_SIZE;
+}
 static bool compute_dt(int idx, int64_t *out_dt_sec, int64_t *out_dt_ns_total) 
 {
     int64_t diff_sec  = timestampCurrentCapture[idx].sec - timestampPrevCapture[idx].sec;
@@ -282,10 +290,10 @@ void timersync_run_ctrl(ControllerState * ctrlState, const TimestampI *newTs) {
 void timersync_stop() {
     LL_TIM_SetSlaveMode(TIM2, LL_TIM_SLAVEMODE_DISABLED);
     LL_TIM_DisableCounter(TIM2);
-    LL_TIM_DisableIT_CC1(TIM2);
-    LL_TIM_DisableIT_CC2(TIM2);
-    LL_TIM_DisableIT_CC3(TIM2);
-    LL_TIM_DisableIT_CC4(TIM2);
+    //LL_TIM_DisableIT_CC1(TIM2);
+    //LL_TIM_DisableIT_CC2(TIM2);
+    //LL_TIM_DisableIT_CC3(TIM2);
+    //LL_TIM_DisableIT_CC4(TIM2);
 }
 
 static ControllerState sCtrlState[2];
@@ -358,12 +366,11 @@ static void timersync_process_capture(uint8_t ch, uint32_t ns)
     timestampCurrentCapture[ch].sec=s;
     timestampCurrentCapture[ch].nanosec=ns;
     MSG("CH%u %u.%09u\n", ch, s, ns);
-    snprintf(timestampLog[tslog_head++], sizeof(timestampLog[tslog_head++]), "CH%u %u.%09u\n", ch, s, ns);
-    if (tslog_head>9) tslog_head=0;
+    tslog_add(ch, s, ns); // <-- Add this line
     freq=compute_freq_double(ch);
     if (freq)
     {
-    MSG("Frequency: %.6f\n",freq);
+    MSG("Frequency: %.9f\n",freq);
     MSG("\n");
     }
     timestampPrevCapture[ch].sec= s;
