@@ -106,8 +106,9 @@ The project is relying on the following large software building blocks:
 
 > [!TIP]
 > The project can either use LwIP or EtherLib Ethernet stacks. This can be easily changed by setting the `ETH_STACK` CMake variable in the `CM4/CMakeLists.txt`:
+> However, in this project, for web sever deployment, LWIP is utilized
 > ```
->set(ETH_STACK "LWIP") # select "LWIP" or "ETHERLIB"
+>set(ETH_STACK "LWIP") # select "LWIP" 
 >```
 > The development of the EtherLib network stack was motivated in the beginning by just curiosity and our need for something that is suitable for our university research. Gradually it became a handy tool so we've decided to promote it into our public projects as well.
 >
@@ -205,6 +206,8 @@ timesync operate stop                              Stop time synchronization.
 
 > [!TIP]
 > The above hint can be listed by typing '?'.
+
+## Web Sever Deployment
 
 ## Notes
 
