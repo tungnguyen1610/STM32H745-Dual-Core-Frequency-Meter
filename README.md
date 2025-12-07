@@ -1,4 +1,4 @@
-# STM32 NUCLEO-H745ZI-Q flexPTP demo
+# STM32 NUCLEO-H745ZI-Q flexPTP and Self-Calibrating frequency meter
 
 <!-- <img src="Modules/flexptp/manual/media/flexPTP_logo.png" alt="flexPTP-logo" width="200">
 <img src="https://www.st.com/bin/ecommerce/api/image.PF266519.en.feature-description-include-personalized-no-cpn-large.jpg" alt="NUCLEO-F439ZI" width="200"> -->
@@ -6,10 +6,9 @@
 ![flexPTP CLI](NUCLEO-H745ZI.gif)
 
 ## What's this?
+> This project demonstrate a self-calibrating frequency meter/counter with 4 input channels, which is able to display up to 9th display digits.
+> **This project is based on a [flexPTP](https://github.com/epagris/flexPTP) demo project showcasing the capabilities of the flexPTP [IEEE 1588 Precision Time Protocol](https://ieeexplore.ieee.org/document/9120376) implementation for the [STMicroelectronics NUCLEO-H745ZI-Q](https://www.st.com/en/evaluation-tools/nucleo-h745zi-q.html) dual-core MCU devboard.**
 
-> **This is a [flexPTP](https://github.com/epagris/flexPTP) demo project showcasing the capabilities of the flexPTP [IEEE 1588 Precision Time Protocol](https://ieeexplore.ieee.org/document/9120376) implementation for the [STMicroelectronics NUCLEO-H745ZI-Q](https://www.st.com/en/evaluation-tools/nucleo-h745zi-q.html) dual-core MCU devboard.**
-
-Still not clear what is it useful for? No worries, it's a behind-the-scenes support technology that you use unaware every day if you have a smartphone or when you are connected to the internet. Modern telecommunication and measurement systems often rely on precise time synchronization down to the nanoseconds' scale. Methods got standardized by the IEEE and now it's known by the name of the Precision Time Protocol. This software project is an evaluation environment to showcase the capabilities of our IEEE 1588 PTP implementation named `flexPTP` on the STMicroelectronics NUCLEO-H745ZI board.
 
 > [!TIP]
 >**Just want to try the demo and skip compiling? Download one of the precompiled binaries and jump to [Deploying](#deploying)!**
@@ -20,11 +19,12 @@ Still not clear what is it useful for? No worries, it's a behind-the-scenes supp
 ### Get the sources
 
 > [!NOTE]
+> This project is based on https://github.com/epagris/flexPTP-demo-NUCLEO-H745ZI-Q , please refer to this documentation for flexPTP understanding.
 > To acquire the full source tree after cloning the repo, please fetch the linked *submodules* as well:
 
 ```
-git clone https://github.com/epagris/flexPTP-demo-NUCLEO-H745ZI-Q
-cd flexPTP-demo-NUCLEO-H745ZI-Q
+git clone https://github.com/tungnguyen1610/STM32H745-Dual-Core-Frequency-Meter.git
+cd STM32H745-Dual-Core-Frequency-Meter
 git submodule init
 git submodule update
 ```
@@ -65,6 +65,8 @@ The [STM32CubeProgrammer](https://www.st.com/en/development-tools/stm32cubeprog.
 
 ### Using the `openocd` application
 
+
+The project was support by András Wiesner (Epagris) in 2025 and published under the MIT license. Contributions are welcome! :)
 The [OpenOCD](https://openocd.org/) programming/debugging tool can also be used to upload the firmware using the following command:
 
 `openocd -f "board/st_nucleo_h745zi.cfg" -c init -c halt -c "program build/CM4/CM4.elf" -c "program build/CM7/CM7.elf" -c exit`
@@ -195,6 +197,10 @@ ptp pflags [<flags>]                               Print or set profile flags
 ptp period <delreq|sync|ann> [<lp>|matched]        Print or set log. periods
 ptp coarse [threshold]                             Print or set coarse correction threshold
 ptp priority [<p1> <p2>]                           Print or set clock priority fields
+frequency estimation start                         Rough frequency estimation 
+frequency estimation stop                          Stop frequency estimation channel
+timsync operate start                              Start timer synchronization to ETH peripherial.
+timesync operate stop                              Stop time synchronization.
 ```
 
 > [!TIP]
@@ -222,7 +228,5 @@ ptp priority [<p1> <p2>]                           Print or set clock priority f
 
 ## License
 
-The project was created by András Wiesner (Epagris) in 2025 and published under the MIT license. Contributions are welcome! :)
-
-
+The project was support by András Wiesner (Epagris) in 2025 and published under the MIT license. Contributions are welcome! :)
 
