@@ -216,14 +216,9 @@ timesync operate stop                              Stop time synchronization.
 
 
 ## Related papers and references
-
-[Time Synchronization Extension for the IO-Link Industrial Communication Protocol](https://ieeexplore.ieee.org/document/10747727)
-
-[Distributed Measurement System for Performance Evaluation of Embedded Clock Synchronization Solutions](https://ieeexplore.ieee.org/document/9805958/)
+[Low-Cost PTP Grandmaster Clock Utilizing the Beaglebone Black Single Board Computer](https://ieeexplore.ieee.org/document/11022840)
 
 [Portable, PTP-based Clock Synchronization Implementation for Microcontroller-based Systems and its Performance Evaluation](https://ieeexplore.ieee.org/document/9615250)
-
-[Synchronization of Sampling in a Distributed Audio Frequency Range Data Acquisition System Utilizing Microcontrollers](https://ieeexplore.ieee.org/document/9918455/)
 
 [Methods of Peripheral Synchronization in Real-Time Cyber-Physical Systems](https://ieeexplore.ieee.org/document/10178979/)
 
