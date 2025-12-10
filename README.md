@@ -182,21 +182,6 @@ ptp pps {freq}                                     Set or query PPS signal frequ
 ptp servo params [Kp Kd]                           Set or query K_p and K_d servo parameters
 ptp servo log internals {on|off}                   Enable or disable logging of servo internals
 ptp reset                                          Reset PTP subsystem
-ptp servo offset [offset_ns]                       Set or query clock offset
-ptp log {def|corr|ts|info|locked|bmca} {on|off}    Turn on or off logging
-time [ns]                                          Print time
-ptp master [[un]prefer] [clockid]                  Master clock settings
-ptp info                                           Print PTP info
-ptp domain [domain]                                Print or set PTP domain
-ptp addend [addend]                                Print or set addend
-ptp transport [{ipv4|802.3}]                       Set or get PTP transport layer
-ptp delmech [{e2e|p2p}]                            Set or get PTP delay mechanism
-ptp transpec [{def|gPTP}]                          Set or get PTP transportSpecific field (majorSdoId)
-ptp profile [preset [<name>]]                      Print or set PTP profile, or list available presets
-ptp tlv [preset [name]|unload]                     Print or set TLV-chain, or list available TLV presets
-ptp pflags [<flags>]                               Print or set profile flags
-ptp period <delreq|sync|ann> [<lp>|matched]        Print or set log. periods
-ptp coarse [threshold]                             Print or set coarse correction threshold
 ptp priority [<p1> <p2>]                           Print or set clock priority fields
 frequency estimation start                         Rough frequency estimation 
 frequency estimation stop                          Stop frequency estimation channel
@@ -208,6 +193,9 @@ timesync operate stop                              Stop time synchronization.
 > The above hint can be listed by typing '?'.
 
 ## Web Sever Deployment
+> LwIP's Netconn API is utilized 
+
+
 
 ## Notes
 
