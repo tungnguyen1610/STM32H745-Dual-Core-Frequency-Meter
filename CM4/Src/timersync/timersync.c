@@ -47,7 +47,7 @@ double compute_freq_double(int idx)
     double dt_total = (double)dt_ns * 1e-9; // exactly the interval in seconds
     if (!idx)
     {
-        divider=TIM1->ARR;
+        divider=TIM1->ARR+1;
     }
     else
     {
@@ -358,7 +358,7 @@ static void timersync_process_capture(uint8_t ch, uint32_t ns)
     freq=compute_freq_double(ch);
     if (freq)
     {
-    MSG("Frequency: %.6f\n",freq);
+    MSG("Frequency: %.9f\n",freq);
     MSG("\n");
     }
     timestampPrevCapture[ch].sec= s;
